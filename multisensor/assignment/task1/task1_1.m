@@ -36,7 +36,7 @@ syms beta
 % Original continuous-time nonlinear system equations
 g = 9.81;
 
-% Kinematic Model with Biases and Faults (excluding noises)
+% Bias Free Kinematic Model (excluding noises)
 x_dot =(u*cos(theta)+(v*sin(phi)+w*cos(phi))*sin(theta))*cos(psi) - (v*cos(phi)-w*sin(phi))*sin(psi)+V_wxE;
 y_dot =(u*cos(theta)+(v*sin(phi)+w*cos(phi))*sin(theta))*sin(psi) + (v*cos(phi)-w*sin(phi))*cos(psi)+V_wyE;
 z_dot =-u*sin(theta)+(v*sin(phi)+w*cos(phi))*cos(theta)+V_wzE;
@@ -50,7 +50,7 @@ V_wxE_dot=0;
 V_wyE_dot=0;
 V_wzE_dot=0;
 
-% Observation Model (excluding noises) [Output]
+% Observation Model [Output]
 x_GPS=x_E;
 y_GPS=y_E;
 z_GPS=z_E;

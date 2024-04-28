@@ -128,10 +128,11 @@ function plot_estimated_states(x_cor, t, N, state_names, units)
     x_label = 'Time [s]';
     y_label = 'Estimation in ';
     font_size = 12;
+    n_rows = ceil(length(state_names) / 3);
 
     figure
     for i = 1:length(state_names)
-        subplot(4,3,i)
+        subplot(n_rows, 3, i)
         plot(t(1:N), x_cor(1:N,i), '--b', 'LineWidth', 2)
         grid on
         xlabel(x_label, 'FontSize', font_size)
@@ -173,7 +174,7 @@ function x_dot_vector = funcf(x_vector, c_vector, t)
     % Gravity
     g = 9.81;
 
-    % Kinematic Model with Biases and Faults (excluding noises)
+    % Bias Free Kinematic Model (excluding noises)
     x_dot =(u*cos(theta)+(v*sin(phi)+w*cos(phi))*sin(theta))*cos(psi) - (v*cos(phi)-w*sin(phi))*sin(psi)+V_wxE;
     y_dot =(u*cos(theta)+(v*sin(phi)+w*cos(phi))*sin(theta))*sin(psi) + (v*cos(phi)-w*sin(phi))*cos(psi)+V_wyE;
     z_dot =-u*sin(theta)+(v*sin(phi)+w*cos(phi))*cos(theta)+V_wzE;
@@ -209,7 +210,7 @@ function d_vector = funch(x_vector, c_vector, t)
     V_wyE = x_vector(11);
     V_wzE = x_vector(12);
 
-    % Observation Model (excluding noises) [Output]
+    % Observation Model [Output]
     x_GPS = x_E;
     y_GPS = y_E;
     z_GPS = z_E;
