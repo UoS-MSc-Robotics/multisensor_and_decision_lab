@@ -22,15 +22,15 @@ s = (straingauge - theta_0)/sigma_0;
 for k = 1:size(straingauge,2)-1
  g_pos(k+1) = g_pos(k) + s(k); %neglect leakage term
  g_neg(k+1) = g_neg(k) + s(k); %neglect leakage term
- 
+
  %positive test
  if g_pos(k+1) <0
      g_pos(k+1)=0;
  end
- if g_pos(k+1) > threshold_pos 
+ if g_pos(k+1) > threshold_pos
     n_alarm_pos=n_alarm_pos+1;
     k_alarm_pos=[k_alarm_pos;k+1];
-    g_pos(k+1)=0; %reset
+    % g_pos(k+1)=0; %reset
  end
 
  %negative test
@@ -40,7 +40,7 @@ for k = 1:size(straingauge,2)-1
  if g_neg(k+1) < threshold_neg
     n_alarm_neg=n_alarm_neg+1;
     k_alarm_neg=[k_alarm_neg;k+1];
-    g_neg(k+1)=0;%reset
+    % g_neg(k+1)=0;%reset
  end
 end
 

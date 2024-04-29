@@ -3,7 +3,7 @@
 % Program to implement Extended Kalman Filter for Aircraft Climb
 
 % Read data files
-data_file = load('dataTask3_2.mat');
+data_file = load('dataTask3_1.mat');
 
 % Define the data
 z_k = data_file.d_k; % output
@@ -20,13 +20,13 @@ sigma_p = deg2rad(0.01);
 sigma_q = deg2rad(0.01);
 sigma_r = deg2rad(0.01);
 
-sigma_w_b_A_x = 100;
-sigma_w_b_A_y = 100;
-sigma_w_b_A_z = 100;
+sigma_w_b_A_x = 1;
+sigma_w_b_A_y = 1;
+sigma_w_b_A_z = 1;
 
-sigma_w_b_p = deg2rad(10);
-sigma_w_b_q = deg2rad(10);
-sigma_w_b_r = deg2rad(10);
+sigma_w_b_p = deg2rad(1);
+sigma_w_b_q = deg2rad(1);
+sigma_w_b_r = deg2rad(1);
 
 sigma_x_E = 5;
 sigma_y_E = 5;
@@ -52,13 +52,13 @@ u_estimate = 85; % V_tas estimate
 v = 0;
 w = 0;
 
-b_A_x_estimate = 0.1;
-b_A_y_estimate = 0.1;
-b_A_z_estimate = 0.1;
+b_A_x_estimate = 0.01;
+b_A_y_estimate = 0.01;
+b_A_z_estimate = 0.01;
 
-b_p_estimate = 0.1;
-b_q_estimate = 0.1;
-b_r_estimate = 0.1;
+b_p_estimate = deg2rad(0.1);
+b_q_estimate = deg2rad(0.1);
+b_r_estimate = deg2rad(0.1);
 
 phi = z_k(1,7); % phi_GPS
 theta = z_k(1,8); % theta_GPS
@@ -138,6 +138,7 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, unbiased
         xhat_km1_km1 = xhat_k_k;
         P_km1_km1 = P_k_k;
     end
+    save('saved_task3_2.mat', 'x_cor');
     plot_estimated_states(x_cor, t, N, innov, state_names, unbiased_state_names, units, unbiased_units);
 end
 
@@ -172,6 +173,18 @@ function plot_estimated_states(x_cor, t, N, innov, state_names, unbiased_state_n
     end
     % set figure name
     set(gcf, 'Name', 'Innovation through Extended Kalman Filter with Faults')
+
+
+    % Plot bias
+    figure
+    for i = 10:15
+        subplot(2, 3, i-9)
+        plot(t(1:N), x_cor(1:N,i), '--b', 'LineWidth', 2)
+        grid on
+        xlabel(x_label, 'FontSize', font_size)
+        ylabel(y_label + " (" + units(i) + ")", 'FontSize', font_size)
+        title(state_names(i), 'FontSize', font_size)
+    end
 end
 
 % Function to calculate the state vector derivative
@@ -357,6 +370,26 @@ function [Phi, Gamma] = funcLinDisDyn(x_vector, c_m_vector, Ts)
          0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
          0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
          0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0];
+
+
+    G = [0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                   0,                   0;
+         -1,  0,  0,  0,                    w,                   -v,    1,    0,    0,    0,                  -w,                   v;
+         0, -1,  0, -w,                    0,                    u,    0,    1,    0,    w,                   0,                  -u;
+         0,  0, -1,  v,                   -u,                    0,    0,    0,    1,   -v,                   u,                   0;
+         0,  0,  0, -1, -sin(phi)*tan(theta), -cos(phi)*tan(theta),    0,    0,    0,    1, sin(phi)*tan(theta), cos(phi)*tan(theta);
+         0,  0,  0,  0,            -cos(phi),             sin(phi),    0,    0,    0,    0,            cos(phi),           -sin(phi);
+         0,  0,  0,  0, -sin(phi)/cos(theta), -cos(phi)/cos(theta),    0,    0,    0,    0, sin(phi)/cos(theta), cos(phi)/cos(theta);
+         0,  0,  0,  0,                    0,                    0, 1/Ts,    0,    0,    0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0, 1/Ts,    0,    0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0, 1/Ts,    0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0, 1/Ts,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                1/Ts,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                   0,                1/Ts;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,    0,                   0,                   0];
 
 
     % Discretisation of dynamics
