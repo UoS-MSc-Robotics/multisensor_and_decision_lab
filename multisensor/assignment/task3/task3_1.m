@@ -3,7 +3,7 @@
 % Program to implement Extended Kalman Filter for Aircraft Climb
 
 % Read data files
-data_file = load('dataTask2.mat');
+data_file = load('dataTask3_1.mat');
 
 % Define the data
 z_k = data_file.d_k; % output

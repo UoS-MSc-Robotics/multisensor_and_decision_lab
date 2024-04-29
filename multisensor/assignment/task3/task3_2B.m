@@ -3,7 +3,7 @@
 % Program to implement Extended Kalman Filter for Aircraft Climb
 
 % Read data files
-data_file = load('dataTask2.mat');
+data_file = load('dataTask3_2.mat');
 
 % Define the data
 z_k = data_file.d_k; % output
@@ -19,6 +19,14 @@ sigma_A_z = 0.01;
 sigma_p = deg2rad(0.01);
 sigma_q = deg2rad(0.01);
 sigma_r = deg2rad(0.01);
+
+sigma_w_b_A_x = 100;
+sigma_w_b_A_y = 100;
+sigma_w_b_A_z = 100;
+
+sigma_w_b_p = deg2rad(10);
+sigma_w_b_q = deg2rad(10);
+sigma_w_b_r = deg2rad(10);
 
 sigma_x_E = 5;
 sigma_y_E = 5;
@@ -66,10 +74,10 @@ unbiased_state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\thet
 units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s^2', 'm/s^2', 'm/s^2', 'rad/s', 'rad/s', 'rad/s', 'm/s', 'm/s', 'm/s'};
 unbiased_units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'm/s', 'm/s'};
 
-stdw = [sigma_A_x sigma_A_y sigma_A_z sigma_p sigma_q sigma_r];     % standard deviation of system noise
+stdw = [sigma_A_x sigma_A_y sigma_A_z sigma_p sigma_q sigma_r sigma_w_b_A_x sigma_w_b_A_y sigma_w_b_A_z sigma_w_b_p sigma_w_b_q sigma_w_b_r]; % standard deviation of process noise
 stdv = [sigma_x_E sigma_y_E sigma_z_E sigma_u sigma_v sigma_w sigma_phi sigma_theta sigma_psi sigma_V_tas sigma_alpha sigma_beta];      % standard deviation of measurement noise
 Ex_0 = [x_E y_E z_E u_estimate v w phi theta psi b_A_x_estimate b_A_y_estimate b_A_z_estimate b_p_estimate b_q_estimate b_r_estimate V_wxE V_wyE V_wzE]; % initial state estimate
-stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 5 5 5 5 5 5 90 90 90];  %standard deviation of x_0
+stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 5 5 5 5 5 5 90 90 90];  % standard deviation of x_0
 
 % Run the Extended Kalman Filter
 runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, unbiased_state_names, units, unbiased_units);
@@ -331,24 +339,24 @@ function [Phi, Gamma] = funcLinDisDyn(x_vector, c_m_vector, Ts)
          0, 0, 0,                   0,                                                0,                                                0,                                                                                  0,                                                                                                 0,                                                                                                     0,  0,  0,  0,  0,                    0,                    0, 0, 0, 0];
 
 
-    G = [0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-        -1,  0,  0,  0,                    w,                   -v;
-         0, -1,  0, -w,                    0,                    u;
-         0,  0, -1,  v,                   -u,                    0;
-         0,  0,  0, -1, -sin(phi)*tan(theta), -cos(phi)*tan(theta);
-         0,  0,  0,  0,            -cos(phi),             sin(phi);
-         0,  0,  0,  0, -sin(phi)/cos(theta), -cos(phi)/cos(theta);
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0;
-         0,  0,  0,  0,                    0,                    0];
+    G = [0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         -1,  0,  0,  0,                    w,                   -v,    1,    0,    0,  0,                  -w,                   v;
+         0, -1,  0, -w,                    0,                    u,    0,    1,    0,  w,                   0,                  -u;
+         0,  0, -1,  v,                   -u,                    0,    0,    0,    1, -v,                   u,                   0;
+         0,  0,  0, -1, -sin(phi)*tan(theta), -cos(phi)*tan(theta),    0,    0,    0,  1, sin(phi)*tan(theta), cos(phi)*tan(theta);
+         0,  0,  0,  0,            -cos(phi),             sin(phi),    0,    0,    0,  0,            cos(phi),           -sin(phi);
+         0,  0,  0,  0, -sin(phi)/cos(theta), -cos(phi)/cos(theta),    0,    0,    0,  0, sin(phi)/cos(theta), cos(phi)/cos(theta);
+         0,  0,  0,  0,                    0,                    0, 1/Ts,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0, 1/Ts,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0, 1/Ts,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0;
+         0,  0,  0,  0,                    0,                    0,    0,    0,    0,  0,                   0,                   0];
 
 
     % Discretisation of dynamics

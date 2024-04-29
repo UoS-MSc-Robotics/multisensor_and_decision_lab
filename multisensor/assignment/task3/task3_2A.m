@@ -13,8 +13,10 @@ syms p q r
 syms w_A_x w_A_y w_A_z w_p w_q w_r
 % IMU Measurement noise
 syms A_x_m A_y_m A_z_m p_m q_m r_m
-% IMU bias
+% IMU bias for Measurement noise
 syms b_A_x b_A_y b_A_z b_p b_q b_r
+% IMU fault for Measurement noise
+syms w_b_A_x w_b_A_y w_b_A_z w_b_p w_b_q w_b_r
 
 % GPS Position
 syms x_E y_E z_E
@@ -33,6 +35,8 @@ syms V_wxE V_wyE V_wzE
 syms alpha
 % Sideslip angle
 syms beta
+% Sampling time
+syms Ts
 
 
 % Original continuous-time nonlinear system equations
@@ -48,9 +52,9 @@ w_dot =(A_z-b_A_z)+g*cos(theta)*cos(phi)+(q-b_q)*u-(p-b_p)*v;
 phi_dot =(p-b_p)+(q-b_q)*sin(phi)*tan(theta)+(r-b_r)*cos(phi)*tan(theta);
 theta_dot =(q-b_q)*cos(phi)-(r-b_r)*sin(phi);
 psi_dot =(q-b_q)*sin(phi)/cos(theta)+(r-b_r)*cos(phi)/cos(theta);
-b_A_x_dot =0;
-b_A_y_dot =0;
-b_A_z_dot =0;
+b_A_x_dot = 1/Ts*(w_b_A_x);
+b_A_y_dot = 1/Ts*(w_b_A_y);
+b_A_z_dot = 1/Ts*(w_b_A_z);
 b_p_dot =0;
 b_q_dot =0;
 b_r_dot =0;
@@ -86,6 +90,7 @@ b_vector = [b_A_x b_A_y b_A_z b_p b_q b_r];
 
 % Measurement vector
 w_vector = [w_A_x w_A_y w_A_z w_p w_q w_r];
+w_b_vector = [w_b_A_x w_b_A_y w_b_A_z w_b_p w_b_q w_b_r];
 
 % Input measurement vector
 c_m_vector = [A_x_m A_y_m A_z_m p_m q_m r_m];
@@ -97,11 +102,15 @@ d_vector = [x_GPS y_GPS z_GPS u_GPS v_GPS w_GPS phi_GPS theta_GPS psi_GPS V_tas 
 x_dot_vector = [x_dot y_dot z_dot u_dot v_dot w_dot phi_dot theta_dot psi_dot b_A_x_dot b_A_y_dot b_A_z_dot b_p_dot b_q_dot b_r_dot V_wxE_dot V_wyE_dot V_wzE_dot];
 
 % Substitute the input measurement equation in the system equations
-x_dot_vector = subs(x_dot_vector, c_vector, c_m_vector-w_vector);
+x_dot_vector = subs(x_dot_vector, c_vector, c_m_vector - w_vector + w_b_vector);
 
 % Calculate the Jacobian linearization
 f_expression = subs(x_dot_vector, w_vector, zeros(1, length(w_vector)));
 A_expression = jacobian(f_expression, x_vector);
-G_expression = jacobian(x_dot_vector, w_vector);
+G_expression = jacobian(x_dot_vector, [w_vector w_b_vector]);
 H_expression = jacobian(d_vector, x_vector);
 
+% Print the expressions
+% disp(A_expression);
+disp(G_expression);
+% disp(H_expression);
