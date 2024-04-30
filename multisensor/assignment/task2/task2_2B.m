@@ -130,7 +130,7 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, unbiased
         xhat_km1_km1 = xhat_k_k;
         P_km1_km1 = P_k_k;
     end
-    save('saved_task2_2.mat', 'x_cor');
+    save('saved_task2_2.mat', 'x_cor', 'innov');
     plot_estimated_states(x_cor, t, N, innov, state_names, unbiased_state_names, units, unbiased_units);
 end
 

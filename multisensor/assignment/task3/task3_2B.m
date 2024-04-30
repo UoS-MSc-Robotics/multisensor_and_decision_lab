@@ -70,9 +70,9 @@ V_wzE = 0;
 
 % Define state names
 state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\theta', '\psi', 'b_{A_{x}}', 'b_{A_{y}}', 'b_{A_{z}}', 'b_{p}', 'b_{q}', 'b_{r}', 'V_{wxE}', 'V_{wyE}', 'V_{wzE}'};
-unbiased_state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\theta', '\psi', 'V_{wxE}', 'V_{wyE}', 'V_{wzE}'};
+output_state_names = {'x_{GPS}', 'y_{GPS}', 'z_{GPS}', 'u_{GPS}', 'v_{GPS}', 'w_{GPS}', '\phi_{GPS}', '\theta_{GPS}', '\psi_{GPS}', 'V_{tas}', '\alpha', '\beta'};
 units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s^2', 'm/s^2', 'm/s^2', 'rad/s', 'rad/s', 'rad/s', 'm/s', 'm/s', 'm/s'};
-unbiased_units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'm/s', 'm/s'};
+output_units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'rad', 'rad'};
 
 stdw = [sigma_A_x sigma_A_y sigma_A_z sigma_p sigma_q sigma_r sigma_w_b_A_x sigma_w_b_A_y sigma_w_b_A_z sigma_w_b_p sigma_w_b_q sigma_w_b_r]; % standard deviation of process noise
 stdv = [sigma_x_E sigma_y_E sigma_z_E sigma_u sigma_v sigma_w sigma_phi sigma_theta sigma_psi sigma_V_tas sigma_alpha sigma_beta];      % standard deviation of measurement noise
@@ -80,11 +80,11 @@ Ex_0 = [x_E y_E z_E u_estimate v w phi theta psi b_A_x_estimate b_A_y_estimate b
 stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 5 5 5 5 5 5 90 90 90];  % standard deviation of x_0
 
 % Run the Extended Kalman Filter
-runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, unbiased_state_names, units, unbiased_units);
+runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units);
 
 
 % Function to run the Extended Kalman Filter
-function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, unbiased_state_names, units, unbiased_units)
+function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units)
     Ts = dt;     % time step (already provided by the data)
     N = length(t); % total number of steps
 
@@ -139,10 +139,10 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, unbiased
         P_km1_km1 = P_k_k;
     end
     save('saved_task3_2.mat', 'x_cor');
-    plot_estimated_states(x_cor, t, N, innov, state_names, unbiased_state_names, units, unbiased_units);
+    plot_estimated_states(x_cor, t, N, innov, state_names, output_state_names, units, output_units);
 end
 
-function plot_estimated_states(x_cor, t, N, innov, state_names, unbiased_state_names, units, unbiased_units)
+function plot_estimated_states(x_cor, t, N, innov, state_names, output_state_names, units, output_units)
     % Plot the estimated states
     x_label = 'Time [s]';
     y_label = 'Estimation in ';
@@ -168,8 +168,8 @@ function plot_estimated_states(x_cor, t, N, innov, state_names, unbiased_state_n
         plot(t(1:N), innov(1:N,i), '--r', 'LineWidth', 2)
         grid on
         xlabel(x_label, 'FontSize', font_size)
-        ylabel('Innovation' + " (" + unbiased_units(i) + ")", 'FontSize', font_size)
-        title(unbiased_state_names(i), 'FontSize', font_size)
+        ylabel('Innovation' + " (" + output_units(i) + ")", 'FontSize', font_size)
+        title(output_state_names(i), 'FontSize', font_size)
     end
     % set figure name
     set(gcf, 'Name', 'Innovation through Extended Kalman Filter with Faults')

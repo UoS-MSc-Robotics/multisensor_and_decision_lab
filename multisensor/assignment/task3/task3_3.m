@@ -14,8 +14,8 @@ x_nominal = data_file_nominal.x_cor(:,10:15);
 x_faulty = data_file_faulty.x_cor(:,10:15);
 
 % Precomputed values for nominal data
-theta0_list = [0.5000 0.3009 -0.0950 0.0052 -0.0070 0.0105];
-sigma0_list = [0.0010 0.0021 0.0000 0.0000 0.0000 0.0000];
+theta0_list = [0.5000 0.3009 -0.0950 0.0052 -0.0070 0.0105]; % mean of the noise
+sigma0_list = [0.0010 0.0021 0.0000 0.0000 0.0000 0.0000]; % variance of the noise
 thresholds_list = [6 0 1 0.2 0.1 0.1];  % empirical values
 cum_threshold_list = thresholds_list + theta0_list;
 
