@@ -93,12 +93,23 @@ function [x_est, b_est, Ax_f_instance, Ay_f_instance, Az_f_instance, p_f_instanc
     stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 5 5 5 5 5 5 90 90 90];  % standard deviation of x_0
 
     % Run the Extended Kalman Filter
-    runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units);
+    [x_est, b_est, fault_instances_list] = ...
+        runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units);
+
+    % Extract the fault instances
+    Ax_f_instance = fault_instances_list{1};
+    Ay_f_instance = fault_instances_list{2};
+    Az_f_instance = fault_instances_list{3};
+    p_f_instance = fault_instances_list{4};
+    q_f_instance = fault_instances_list{5};
+    r_f_instance = fault_instances_list{6};
+    AoA_f_instance = 0;
 end
 
 
 % Function to run the Extended Kalman Filter
-function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units)
+function [x_est, b_est, fault_instances_list] = ...
+        runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units)
     Ts = dt;     % time step (already provided by the data)
     N = length(t); % total number of steps
 
@@ -137,6 +148,20 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_s
         z_k_km1 = funch(xhat_k_km1,u_km1(k,:),[]); % z(k|k-1) (prediction of output)
         xhat_k_k = xhat_k_km1 + (z_k(k,:) - z_k_km1)*K_k'; % x(k|k) (correction)
 
+        % Cyber attack on alpha, fix the measurement update of the 11th state of innovation
+        % Innovation data calculation
+        innov(k,:) = z_k(k,:) - z_k_km1; % y(k)-y(k|k-1) (innovation)
+
+        % standardised the innovation
+        innov(k, :) = innov(k, :) ./ sqrt(diag(Ve))';
+
+        % Check if the innovation is within 3 standard deviations for the 11th state
+        if abs(innov(k, 11)) > 3
+            % If the innovation is outside 3 standard deviations, then the measurement is not used
+            z_k(k, 11) = z_k_km1(11);
+            innov(k, 11) = 0;
+        end
+
         % Step 5: Correction for Covariance matrix of state Estimate error /
         % Minimum MSE
         I_KH = eye(n) - K_k * H_k;
@@ -152,19 +177,152 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_s
         xhat_km1_km1 = xhat_k_k;
         P_km1_km1 = P_k_k;
     end
-    % plot_estimated_states(x_cor, t, N, innov, state_names, output_state_names, units, output_units);
-
     % Return the estimated states
-    x_est = x_cor;
+    x_est = [x_cor(:,1:9) x_cor(:,16:18)];
     b_est = x_cor(:,10:15);
-    Ax_f_instance = 0;
-    Ay_f_instance = 0;
-    Az_f_instance = 0;
-    p_f_instance = 0;
-    q_f_instance = 0;
-    r_f_instance = 0;
-    AoA_f_instance = 0;
 
+    % Plot the estimated states
+    plot_estimated_states(x_cor, t, N, innov, state_names, output_state_names, units, output_units);
+
+    % Implement CUSUM test for fault detection
+    x_faulty = b_est;
+    theta0_list = mean(x_faulty);
+    sigma0_list = std(x_faulty);
+    thresholds_list = [6 0 1 0.2 0.1 0.1];  % empirical values
+    cum_threshold_list = thresholds_list + theta0_list;
+    data_labels = {'A_{x}', 'A_{y}', 'A_{z}', 'p', 'q', 'r'};
+    leak = [1 1 2 1 1 1];
+
+    % Implement CUSUM algorithm for states
+    state_instances_list = implement_cusum(x_faulty, leak, cum_threshold_list, theta0_list, sigma0_list, data_labels);
+
+    % Implement CUSUM algorithm for angle of attack
+    x_faulty = innov(:,11);
+    theta0 = mean(x_faulty);
+    sigma0 = std(x_faulty);
+    thresholds_list = [0.02];  % empirical values
+    cum_threshold_list = thresholds_list + theta0;
+    data_labels = {'\alpha'};
+    leak = 1;
+
+    alpha_instances = implement_cusum(x_faulty, leak, cum_threshold_list, theta0, sigma0, data_labels);
+
+    % Save the fault instances
+    fault_instances_list = [state_instances_list alpha_instances];
+end
+
+% Function to implement CUSUM algorithm
+function fault_instances_list = implement_cusum(x_faulty, leak, cum_threshold_list, theta0_list, sigma0_list, data_labels)
+    % Initialize variables
+    skip_faulty_indices = 500; % Skip initial values so that EKF can converge
+    faulty_size = size(x_faulty, 1);
+    faulty_columns = size(x_faulty, 2);
+    fault_instances = cell(1, faulty_columns);
+
+    for idx=1:faulty_columns
+        straingauge = x_faulty(skip_faulty_indices:faulty_size, idx);
+        theta0 = theta0_list(idx);
+        sigma0 = sigma0_list(idx);
+        cum_threshold = cum_threshold_list(idx);
+
+        threshold_pos = cum_threshold;
+        threshold_neg = -cum_threshold;
+
+        % Two-Sided CUSUM Test
+        g_pos = 0 * straingauge;
+        g_neg = 0 * straingauge;
+        k_alarm_pos = [];
+        k_alarm_neg = [];
+
+        s = (straingauge - theta0) / sigma0;
+
+        for k = 1:size(straingauge, 1) - 1
+            g_pos(k+1) = g_pos(k) + s(k) - leak(idx);
+            g_neg(k+1) = g_neg(k) + s(k) + leak(idx);
+
+            % Positive test
+            if g_pos(k+1) < 0
+                g_pos(k+1) = 0;
+            end
+            if g_pos(k+1) > threshold_pos
+                k_alarm_pos = [k_alarm_pos; k+1];
+                g_pos(k+1) = 0; % reset
+            end
+
+            % Negative test
+            if g_neg(k+1) > 0
+                g_neg(k+1) = 0;
+            end
+            if g_neg(k+1) < threshold_neg
+                k_alarm_neg = [k_alarm_neg; k+1];
+                g_neg(k+1) = 0; % reset
+            end
+        end
+
+        % Add the skipped indices
+        if ~isempty(k_alarm_pos)
+            k_alarm_pos = k_alarm_pos + skip_faulty_indices;
+        end
+        if ~isempty(k_alarm_neg)
+            k_alarm_neg = k_alarm_neg + skip_faulty_indices;
+        end
+
+        % Save the fault instances
+        if ~isempty(k_alarm_pos) && ~isempty(k_alarm_neg)
+            % Find the union of the two alarms
+            fault_instances{idx} = unique([k_alarm_pos; k_alarm_neg]);
+        elseif ~isempty(k_alarm_pos)
+            fault_instances{idx} = k_alarm_pos;
+        elseif ~isempty(k_alarm_neg)
+            fault_instances{idx} = k_alarm_neg;
+        else
+            fault_instances{idx} = 0;
+        end
+        fault_instances{idx} = fault_instances{idx} / 100; % Convert to seconds
+
+        figure
+        p1=plot(g_pos);
+        hold on
+        p2=plot(g_neg);
+
+        % Save the fault instances
+        if ~isempty(k_alarm_pos) && ~isempty(k_alarm_neg)
+
+            for i=1:length(k_alarm_pos)
+                p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-20 20],'b--');
+            end
+            for i=1:length(k_alarm_neg)
+                p4=plot([k_alarm_neg(i) k_alarm_neg(i)],[-20 20],'r-.');
+            end
+            legend([p1,p2,p3,p4],'Positive Test', 'Negative Test','Alarms for positive test','Alarms for negative test')
+
+        elseif ~isempty(k_alarm_pos)
+
+            for i=1:length(k_alarm_pos)
+                p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-20 20],'b--');
+            end
+            legend([p1,p2,p3],'Positive Test', 'Negative Test','Alarms for positive test')
+
+        elseif ~isempty(k_alarm_neg)
+
+            for i=1:length(k_alarm_neg)
+                p3=plot([k_alarm_neg(i) k_alarm_neg(i)],[-20 20],'r-.');
+            end
+            legend([p1,p2,p3],'Positive Test', 'Negative Test','Alarms for negative test')
+
+        else
+            legend([p1,p2],'Positive Test', 'Negative Test')
+        end
+
+        yline(threshold_neg)
+        yline(threshold_pos)
+        ylim([threshold_neg-0.025 threshold_pos+0.025])
+        xlabel('Step')
+        ylabel('g_t')
+        title(['CUSUM Algorithm for ', data_labels{idx}]);
+    end
+
+    fault_instances_list = fault_instances;
 end
 
 

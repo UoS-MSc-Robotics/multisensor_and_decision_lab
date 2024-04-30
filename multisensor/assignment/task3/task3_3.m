@@ -33,8 +33,9 @@ function implement_cusum(x_faulty, leak, cum_threshold_list, theta0_list, sigma0
     % Initialize variables
     skip_faulty_indices = 500; % Skip initial values so that EKF can converge
     faulty_size = size(x_faulty, 1);
+    faulty_columns = size(x_faulty, 2);
 
-    for idx=1:6
+    for idx=1:faulty_columns
         straingauge = x_faulty(skip_faulty_indices:faulty_size, idx);
         theta0 = theta0_list(idx);
         sigma0 = sigma0_list(idx);
@@ -74,22 +75,22 @@ function implement_cusum(x_faulty, leak, cum_threshold_list, theta0_list, sigma0
             end
         end
 
-        figure
-        p1=plot(g_pos);
-        hold on
-        p2=plot(g_neg);
-        for i=1:length(k_alarm_pos)
-            p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-20 20],'b--');
-        end
-        for i=1:length(k_alarm_neg)
-            p4=plot([k_alarm_neg(i) k_alarm_neg(i)],[-20 20],'r-.');
-        end
-        legend([p1,p2,p3,p4],'Positive Test', 'Negative Test','Alarms for positive test','Alarms for negative test')
-        yline(threshold_neg)
-        yline(threshold_pos)
-        ylim([threshold_neg-0.025 threshold_pos+0.025])
-        xlabel('Step')
-        ylabel('g_t')
-        title(['CUSUM Algorithm for ', data_labels{idx}]);
+        % figure
+        % p1=plot(g_pos);
+        % hold on
+        % p2=plot(g_neg);
+        % for i=1:length(k_alarm_pos)
+        %     p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-20 20],'b--');
+        % end
+        % for i=1:length(k_alarm_neg)
+        %     p4=plot([k_alarm_neg(i) k_alarm_neg(i)],[-20 20],'r-.');
+        % end
+        % legend([p1,p2,p3,p4],'Positive Test', 'Negative Test','Alarms for positive test','Alarms for negative test')
+        % yline(threshold_neg)
+        % yline(threshold_pos)
+        % ylim([threshold_neg-0.025 threshold_pos+0.025])
+        % xlabel('Step')
+        % ylabel('g_t')
+        % title(['CUSUM Algorithm for ', data_labels{idx}]);
     end
 end

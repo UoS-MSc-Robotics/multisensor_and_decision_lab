@@ -175,8 +175,9 @@ function implement_cusum(x_faulty, leak, cum_threshold_list, theta0_list, sigma0
     % Initialize variables
     skip_faulty_indices = 500; % Skip initial values so that EKF can converge
     faulty_size = size(x_faulty, 1);
+    faulty_columns = size(x_faulty, 2);
 
-    for idx=1:6
+    for idx=1:faulty_columns
         straingauge = x_faulty(skip_faulty_indices:faulty_size, idx);
         theta0 = theta0_list(idx);
         sigma0 = sigma0_list(idx);
