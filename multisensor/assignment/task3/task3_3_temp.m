@@ -3,8 +3,8 @@
 % Program to implement Extended Kalman Filter for Aircraft Climb
 
 % Read data files
-datasets = [load('dataTask2.mat'), load('dataTask3_1.mat'), load('dataTask3_1.mat')];
-dataset_names = {'Sensor Fault Devoid Dataset', 'Sensor Fault Present Dataset', 'Sensor Fault Mitigated Dataset'};
+datasets = [load('dataTask2.mat'), load('dataTask3_1.mat')];
+dataset_names = {'Sensor Fault Devoid Dataset', 'Sensor Fault Mitigated Dataset'};
 
 % Define initial values
 x_cor_list = cell(length(datasets), 1);
@@ -97,8 +97,239 @@ for idx = 1:length(datasets)
 end
 
 % Plot the estimated states
-plot_estimated_states(x_cor_list, innov_list, t, state_names, output_state_names, units, output_units, dataset_names);
+% plot_estimated_states(x_cor_list, innov_list, t, state_names, output_state_names, units, output_units, dataset_names, []);
 
+% Implement CUSUM algorithm
+data_labels = {'A_{x}', 'A_{y}', 'A_{z}', 'p', 'q', 'r'};
+data_nominal = x_cor_list{1}(:,10:15);
+data_faulty = x_cor_list{2}(:,10:15);
+
+% Define the threshold values
+threshold_list = [5 5 5 0.05 0.05 0.2];  % empirical values
+
+% Define the leakage values
+leak = [1 4 2 1 1 1];
+
+% Implement the CUSUM algorithm
+[g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list] = implement_cusum(data_faulty, leak, threshold_list);
+
+% Get fault onset times
+time_onset_list = get_fault_onset_times(k_alarm_pos_list, k_alarm_neg_list, data_labels);
+
+% Plot the CUSUM algorithm
+% plot_cusum(g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list, threshold_list, data_labels);
+
+% Plot the estimated states
+plot_estimated_states(x_cor_list, innov_list, t, state_names, output_state_names, units, output_units, dataset_names, time_onset_list);
+
+
+
+% Function to get the fault onset times
+function time_onset_list = get_fault_onset_times(k_alarm_pos_list, k_alarm_neg_list, data_labels)
+    threshold = 10;
+    buffer = 1000;
+
+    for idx=1:length(data_labels)
+        k_alarm_pos = k_alarm_pos_list{idx};
+        k_alarm_neg = k_alarm_neg_list{idx};
+
+        if ~isempty(k_alarm_pos) && ~isempty(k_alarm_neg)
+
+            % Positive test
+            change_points = find(ischange(k_alarm_pos, 'linear', 'Threshold', threshold));
+
+            % append the first change point
+            if ~isempty(change_points)
+                pos_test_list = [k_alarm_pos(change_points(1))];
+
+                for i = 1:length(change_points)-1
+                    if k_alarm_pos(change_points(i+1)) - k_alarm_pos(change_points(i)) > buffer
+                        pos_test_list = [pos_test_list; k_alarm_pos(change_points(i+1))];
+                    end
+                end
+            else
+                pos_test_list = k_alarm_pos(1);
+            end
+
+            % Take positive test as the fault onset time
+            time_onset_list{idx} = pos_test_list;
+
+        elseif ~isempty(k_alarm_pos)
+            % Positive test
+            change_points = find(ischange(k_alarm_pos, 'linear', 'Threshold', threshold));
+
+            % append the first change point
+            if ~isempty(change_points)
+                pos_test_list = [k_alarm_pos(change_points(1))];
+
+                for i = 1:length(change_points)-1
+                    if k_alarm_pos(change_points(i+1)) - k_alarm_pos(change_points(i)) > buffer
+                        pos_test_list = [pos_test_list; k_alarm_pos(change_points(i+1))];
+                    end
+                end
+            else
+                pos_test_list = k_alarm_pos(1);
+            end
+
+            % Take positive test as the fault onset time
+            time_onset_list{idx} = pos_test_list;
+
+        elseif ~isempty(k_alarm_neg)
+            % Negative test
+            change_points = find(ischange(k_alarm_neg, 'linear', 'Threshold', threshold));
+
+            % append the first change point
+            if ~isempty(change_points)
+                neg_test_list = [k_alarm_neg(change_points(1))];
+
+                for i = 1:length(change_points)-1
+                    if k_alarm_neg(change_points(i+1)) - k_alarm_neg(change_points(i)) > buffer
+                        neg_test_list = [neg_test_list; k_alarm_neg(change_points(i+1))];
+                    end
+                end
+            else
+                neg_test_list = k_alarm_neg(1);
+            end
+
+            % Take negative test as the fault onset time
+            time_onset_list{idx} = neg_test_list;
+
+        else
+            time_onset_list{idx} = 0;
+        end
+    end
+end
+
+
+
+% Function to plot the CUSUM algorithm
+function plot_cusum(g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list, threshold_list, data_labels)
+    % Plot the CUSUM algorithm
+    font_size = 12;
+    n_rows = ceil(length(data_labels) / 3);
+
+    figure
+    for idx=1:length(data_labels)
+        subplot(n_rows, 3, idx)
+        p1=plot(g_pos_list{idx});
+        hold on
+        p2=plot(g_neg_list{idx});
+
+        k_alarm_pos = k_alarm_pos_list{idx};
+        k_alarm_neg = k_alarm_neg_list{idx};
+
+        if ~isempty(k_alarm_pos) && ~isempty(k_alarm_neg)
+
+            for i=1:length(k_alarm_pos)
+                p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-20 20],'b--');
+            end
+            for i=1:length(k_alarm_neg)
+                p4=plot([k_alarm_neg(i) k_alarm_neg(i)],[-20 20],'r-.');
+            end
+            legend([p1,p2,p3,p4],'Positive Test', 'Negative Test',' Alarms for positive test','Alarms for negative test','Location','best')
+
+        elseif ~isempty(k_alarm_pos)
+
+            for i=1:length(k_alarm_pos)
+                p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-20 20],'b--');
+            end
+            legend([p1,p2,p3],'Positive Test', 'Negative Test', 'Alarms for positive test','Location','best')
+
+        elseif ~isempty(k_alarm_neg)
+
+            for i=1:length(k_alarm_neg)
+                p3=plot([k_alarm_neg(i) k_alarm_neg(i)],[-20 20],'r-.');
+            end
+            legend([p1,p2,p3],'Positive Test', 'Negative Test', 'Alarms for negative test', 'Location')
+
+        else
+            legend([p1,p2],'Positive Test', 'Negative Test', 'Location','best')
+        end
+
+        yline(-threshold_list(idx))
+        yline(threshold_list(idx))
+        ylim([-threshold_list(idx)-0.025 threshold_list(idx)+0.025])
+        xlabel('Step', 'FontSize', font_size)
+        ylabel('g_t', 'FontSize', font_size)
+        title(['CUSUM Algorithm for ', data_labels{idx}], 'FontSize', font_size)
+    end
+end
+
+
+
+% Function to implement CUSUM algorithm
+function [g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list] = implement_cusum(x_faulty, leak, threshold_list)
+    % Initialize variables
+    skip_faulty_indices = 500; % Skip initial values so that EKF can converge
+    faulty_size = size(x_faulty, 1);
+    faulty_columns = size(x_faulty, 2);
+    g_pos_list = cell(faulty_columns, 1);
+    g_neg_list = cell(faulty_columns, 1);
+    k_alarm_pos_list = cell(faulty_columns, 1);
+    k_alarm_neg_list = cell(faulty_columns, 1);
+
+
+    for idx=1:faulty_columns
+        straingauge = x_faulty(skip_faulty_indices:faulty_size, idx);
+        theta0 = 0;
+        sigma0 = std(straingauge);
+
+        threshold_pos = threshold_list(idx);
+        threshold_neg = -threshold_list(idx);
+
+        % Two-Sided CUSUM Test
+        g_pos = 0 * straingauge;
+        g_neg = 0 * straingauge;
+        k_alarm_pos = [];
+        k_alarm_neg = [];
+
+        s = (straingauge - theta0) / sigma0;
+
+        for k = 1:size(straingauge, 1) - 1
+            g_pos(k+1) = g_pos(k) + s(k) - leak(idx);
+            g_neg(k+1) = g_neg(k) + s(k) + leak(idx);
+
+            % Positive test
+            if g_pos(k+1) < 0
+                g_pos(k+1) = 0;
+            end
+            if g_pos(k+1) > threshold_pos
+                k_alarm_pos = [k_alarm_pos; k+1];
+                g_pos(k+1) = 0; % reset
+            end
+
+            % Negative test
+            if g_neg(k+1) > 0
+                g_neg(k+1) = 0;
+            end
+            if g_neg(k+1) < threshold_neg
+                k_alarm_neg = [k_alarm_neg; k+1];
+                g_neg(k+1) = 0; % reset
+            end
+        end
+
+        if ~isempty(k_alarm_pos)
+            k_alarm_pos = k_alarm_pos + skip_faulty_indices;
+        end
+
+        if ~isempty(k_alarm_neg)
+            k_alarm_neg = k_alarm_neg + skip_faulty_indices;
+        end
+
+        if isempty(k_alarm_pos)
+            k_alarm_pos = 0;
+        end
+
+        if isempty(k_alarm_neg)
+            k_alarm_neg = 0;
+        end
+
+        g_pos_list{idx} = g_pos;
+        g_neg_list{idx} = g_neg;
+        k_alarm_pos_list{idx} = k_alarm_pos;
+        k_alarm_neg_list{idx} = k_alarm_neg;
+    end
+end
 
 % Function to run the Extended Kalman Filter
 function [x_cor, innov] = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, fault_present)
@@ -166,23 +397,21 @@ function plot_estimated_states(x_cor_list, innov_list, t, state_names, output_st
     x_label = 'Time [s]';
     y_label = 'Estimation in ';
     font_size = 12;
-    n_rows = ceil((length(state_names) - 6) / 3);
+    n_rows = ceil((length(state_names) - 12) / 3);
     figure
     for i = 1:length(state_names)
-        if i < 10
-            subplot_idx = i;
-        elseif i > 9 && i < 16
+        if ~(i > 9 && i < 16)
             continue
-        elseif i >= 16
-            subplot_idx = i - 6;
+        else
+            subplot_idx = i - 9;
         end
         subplot(n_rows, 3, subplot_idx)
         hold on
-        for idx = 1:length(x_cor_list)
+        for idx = length(x_cor_list):-1:1
             if idx == length(x_cor_list)
                 plot(t, x_cor_list{idx}(:,i), '--r', 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
             else
-                plot(t, x_cor_list{idx}(:,i), 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
+                plot(t, x_cor_list{idx}(:,i), 'DisplayName', dataset_names{idx}, 'LineWidth', 2, 'Color', [0 0 1.0]);
             end
         end
         hold off
@@ -190,28 +419,6 @@ function plot_estimated_states(x_cor_list, innov_list, t, state_names, output_st
         xlabel(x_label, 'FontSize', font_size)
         ylabel([y_label units{i}], 'FontSize', font_size)
         title([state_names{i}], 'FontSize', font_size)
-        legend('Location', 'best')
-    end
-    % set figure name
-    set(gcf, 'Name', 'Estimated States through Extended Kalman Filter with Biases and Faults')
-
-    % Plot the innovation
-    figure
-    for i = 1:length(output_state_names)
-        subplot(4, 3, i)
-        hold on
-        for idx = 1:length(innov_list)
-            if idx == length(innov_list)
-                plot(t, innov_list{idx}(:,i), '--r', 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
-            else
-                plot(t, innov_list{idx}(:,i), 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
-            end
-        end
-        hold off
-        grid on
-        xlabel(x_label, 'FontSize', font_size)
-        ylabel([y_label output_units{i}], 'FontSize', font_size)
-        title(['Innovation: ' output_state_names{i}], 'FontSize', font_size)
         legend('Location', 'best')
     end
 end

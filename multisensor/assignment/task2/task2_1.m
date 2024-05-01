@@ -139,13 +139,14 @@ function plot_estimated_states(x_cor_list, t, state_names, units, dataset_names)
     x_label = 'Time [s]';
     y_label = 'Estimation in ';
     font_size = 12;
+    n_rows = ceil(length(state_names) / 3);
 
     figure
     for i = 1:length(state_names)
-        subplot(4,3,i)
+        subplot(n_rows, 3, i)
         hold on
         for idx = 1:length(x_cor_list)
-            plot(t, x_cor_list{idx}(:,i), 'DisplayName', dataset_names{idx})
+            plot(t, x_cor_list{idx}(:,i), 'DisplayName', dataset_names{idx},'LineWidth', 2)
         end
         hold off
         grid on

@@ -7,7 +7,7 @@ datasets = [load('dataTask1.mat') load('dataTask2.mat'), load('dataTask2.mat')];
 dataset_names = {'Unbiased Dataset', 'Biased Dataset', 'Bias Filtered Dataset'};
 
 
-% Define intital values
+% Define initial values
 x_cor_list = cell(length(datasets), 1);
 
 for idx = 1:length(datasets)
@@ -66,7 +66,7 @@ for idx = 1:length(datasets)
     unbiased_state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\theta', '\psi', 'V_{wxE}', 'V_{wyE}', 'V_{wzE}'};
     unbiased_units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'm/s', 'm/s'};
 
-    if idx == 3
+    if idx == length(datasets)
         b_A_x_estimate = 10;
         b_A_y_estimate = 10;
         b_A_z_estimate = 10;

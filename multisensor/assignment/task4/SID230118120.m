@@ -152,8 +152,8 @@ function [x_est, b_est, fault_instances_list] = ...
         % Innovation data calculation
         innov(k,:) = z_k(k,:) - z_k_km1; % y(k)-y(k|k-1) (innovation)
 
-        % standardised the innovation
-        innov(k, :) = innov(k, :) ./ sqrt(diag(Ve))';
+        % standardised the innovation by dividing by Ve without diagonal
+        innov(k, :) = innov(k, :) / sqrtm(Ve);
 
         % Check if the innovation is within 3 standard deviations for the 11th state
         if abs(innov(k, 11)) > 3
@@ -177,6 +177,9 @@ function [x_est, b_est, fault_instances_list] = ...
         xhat_km1_km1 = xhat_k_k;
         P_km1_km1 = P_k_k;
     end
+
+    save('task4.mat', 'x_cor', 'innov', 't');
+
     % Return the estimated states
     x_est = [x_cor(:,1:9) x_cor(:,16:18)];
     b_est = x_cor(:,10:15);
@@ -186,7 +189,7 @@ function [x_est, b_est, fault_instances_list] = ...
 
     % Implement CUSUM test for fault detection
     x_faulty = b_est;
-    theta0_list = mean(x_faulty);
+    theta0_list = 0 * x_faulty(1,:);
     sigma0_list = std(x_faulty);
     thresholds_list = [6 0 1 0.2 0.1 0.1];  % empirical values
     cum_threshold_list = thresholds_list + theta0_list;
@@ -198,9 +201,9 @@ function [x_est, b_est, fault_instances_list] = ...
 
     % Implement CUSUM algorithm for angle of attack
     x_faulty = innov(:,11);
-    theta0 = mean(x_faulty);
-    sigma0 = std(x_faulty);
-    thresholds_list = [0.02];  % empirical values
+    theta0 = 0.0;
+    sigma0 = 0.0007046; % standard deviation of the innovation
+    thresholds_list = 50;  % empirical values
     cum_threshold_list = thresholds_list + theta0;
     data_labels = {'\alpha'};
     leak = 1;
@@ -237,8 +240,8 @@ function fault_instances_list = implement_cusum(x_faulty, leak, cum_threshold_li
         s = (straingauge - theta0) / sigma0;
 
         for k = 1:size(straingauge, 1) - 1
-            g_pos(k+1) = g_pos(k) + s(k) - leak(idx);
-            g_neg(k+1) = g_neg(k) + s(k) + leak(idx);
+            g_pos(k+1) = g_pos(k) + s(k+1) - leak(idx);
+            g_neg(k+1) = g_neg(k) + s(k+1) + leak(idx);
 
             % Positive test
             if g_pos(k+1) < 0
