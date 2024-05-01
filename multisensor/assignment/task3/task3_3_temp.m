@@ -97,7 +97,7 @@ for idx = 1:length(datasets)
 end
 
 % Plot the estimated states
-% plot_estimated_states(x_cor_list, innov_list, t, state_names, output_state_names, units, output_units, dataset_names, []);
+plot_estimated_states(x_cor_list, t, state_names, units, dataset_names, []);
 
 % Implement CUSUM algorithm
 data_labels = {'A_{x}', 'A_{y}', 'A_{z}', 'p', 'q', 'r'};
@@ -117,10 +117,10 @@ leak = [1 4 2 1 1 1];
 time_onset_list = get_fault_onset_times(k_alarm_pos_list, k_alarm_neg_list, data_labels);
 
 % Plot the CUSUM algorithm
-% plot_cusum(g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list, threshold_list, data_labels);
+plot_cusum(g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list, threshold_list, data_labels);
 
 % Plot the estimated states
-plot_estimated_states(x_cor_list, innov_list, t, state_names, output_state_names, units, output_units, dataset_names, time_onset_list);
+plot_estimated_states(x_cor_list, t, state_names, units, dataset_names, time_onset_list);
 
 
 
@@ -392,7 +392,7 @@ function [x_cor, innov] = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, faul
     end
 end
 
-function plot_estimated_states(x_cor_list, innov_list, t, state_names, output_state_names, units, output_units, dataset_names)
+function plot_estimated_states(x_cor_list, t, state_names, units, dataset_names, time_onset_list)
     % Plot the estimated states
     x_label = 'Time [s]';
     y_label = 'Estimation in ';
@@ -414,6 +414,15 @@ function plot_estimated_states(x_cor_list, innov_list, t, state_names, output_st
                 plot(t, x_cor_list{idx}(:,i), 'DisplayName', dataset_names{idx}, 'LineWidth', 2, 'Color', [0 0 1.0]);
             end
         end
+        % draw vertical lines for fault onset times
+        if ~isempty(time_onset_list)
+            if ~isempty(time_onset_list{i-9})
+                for j=1:length(time_onset_list{i-9})
+                    xline(time_onset_list{i-9}(j)/100, '--k', 'DisplayName', 'Fault Onset Time', 'LineWidth', 1.5, 'Color', [1 1 0]);
+                end
+            end
+        end
+
         hold off
         grid on
         xlabel(x_label, 'FontSize', font_size)
