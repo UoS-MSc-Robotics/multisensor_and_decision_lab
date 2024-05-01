@@ -40,7 +40,7 @@ x_E = z_k(1,1); % x_GPS
 y_E = z_k(1,2); % y_GPS
 z_E = z_k(1,3); % z_GPS
 
-u_estimate = 85; % V_tas estimate
+u_estimate = mean(z_k(:, 4)); % V_tas estimate
 v = 0;
 w = 0;
 

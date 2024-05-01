@@ -3,70 +3,82 @@
 % Program to implement Extended Kalman Filter for Aircraft Climb with Sensor Bias and Faults
 
 % Read data files
-data_file = load('dataTask2.mat');
+datasets = [load('dataTask1.mat') load('dataTask2.mat')];
+dataset_names = {'Unbiased Dataset', 'Biased Dataset'};
 
-% Define the data
-z_k = data_file.d_k; % output
-u_k = data_file.c_k; % input
-dt = data_file.dt; % time step
-t = data_file.t; % time vector
+% Define intital values
+x_cor_list = cell(length(datasets), 1);
 
-% Define the standard deviations
-sigma_A_x = 0.01;
-sigma_A_y = 0.01;
-sigma_A_z = 0.01;
+for idx = 1:length(datasets)
+    data_file = datasets(idx);
 
-sigma_p = deg2rad(0.01);
-sigma_q = deg2rad(0.01);
-sigma_r = deg2rad(0.01);
+    % Define the data
+    z_k = data_file.d_k; % output
+    u_k = data_file.c_k; % input
+    dt = data_file.dt; % time step
+    t = data_file.t; % time vector
 
-sigma_x_E = 5;
-sigma_y_E = 5;
-sigma_z_E = 10;
+    % Define the standard deviations
+    sigma_A_x = 0.01;
+    sigma_A_y = 0.01;
+    sigma_A_z = 0.01;
 
-sigma_u = 0.1;
-sigma_v = 0.1;
-sigma_w = 0.1;
-sigma_V_tas = 0.1;
+    sigma_p = deg2rad(0.01);
+    sigma_q = deg2rad(0.01);
+    sigma_r = deg2rad(0.01);
 
-sigma_phi = deg2rad(0.1);
-sigma_theta = deg2rad(0.1);
-sigma_psi = deg2rad(0.1);
-sigma_alpha = deg2rad(0.1);
-sigma_beta = deg2rad(0.1);
+    sigma_x_E = 5;
+    sigma_y_E = 5;
+    sigma_z_E = 10;
 
-% Define the initial conditions
-x_E = z_k(1,1); % x_GPS
-y_E = z_k(1,2); % y_GPS
-z_E = z_k(1,3); % z_GPS
+    sigma_u = 0.1;
+    sigma_v = 0.1;
+    sigma_w = 0.1;
+    sigma_V_tas = 0.1;
 
-u_estimate = 85; % V_tas estimate
-v = 0;
-w = 0;
+    sigma_phi = deg2rad(0.1);
+    sigma_theta = deg2rad(0.1);
+    sigma_psi = deg2rad(0.1);
+    sigma_alpha = deg2rad(0.1);
+    sigma_beta = deg2rad(0.1);
 
-phi = z_k(1,7); % phi_GPS
-theta = z_k(1,8); % theta_GPS
-psi = z_k(1,9); % psi_GPS
+    % Define the initial conditions
+    x_E = z_k(1,1); % x_GPS
+    y_E = z_k(1,2); % y_GPS
+    z_E = z_k(1,3); % z_GPS
 
-V_wxE = 0;
-V_wyE = 0;
-V_wzE = 0;
+    u_estimate = 92
+    v = 0;
+    w = 0;
 
-% Define state names
-state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\theta', '\psi', 'V_{wxE}', 'V_{wyE}', 'V_{wzE}'};
-units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'm/s', 'm/s'};
+    phi = z_k(1,7); % phi_GPS
+    theta = z_k(1,8); % theta_GPS
+    psi = z_k(1,9); % psi_GPS
 
-stdw = [sigma_A_x sigma_A_y sigma_A_z sigma_p sigma_q sigma_r];     % standard deviation of system noise
-stdv = [sigma_x_E sigma_y_E sigma_z_E sigma_u sigma_v sigma_w sigma_phi sigma_theta sigma_psi sigma_V_tas sigma_alpha sigma_beta];      % standard deviation of measurement noise
-Ex_0 = [x_E y_E z_E u_estimate v w phi theta psi V_wxE V_wyE V_wzE]; % expected value of x_0
-stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 90 90 90];  %standard deviation of x_0
+    V_wxE = 0;
+    V_wyE = 0;
+    V_wzE = 0;
 
-% Run the Extended Kalman Filter
-runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, units);
+    % Define state names
+    state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\theta', '\psi', 'V_{wxE}', 'V_{wyE}', 'V_{wzE}'};
+    units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'm/s', 'm/s'};
+
+    stdw = [sigma_A_x sigma_A_y sigma_A_z sigma_p sigma_q sigma_r];     % standard deviation of system noise
+    stdv = [sigma_x_E sigma_y_E sigma_z_E sigma_u sigma_v sigma_w sigma_phi sigma_theta sigma_psi sigma_V_tas sigma_alpha sigma_beta];      % standard deviation of measurement noise
+    Ex_0 = [x_E y_E z_E u_estimate v w phi theta psi V_wxE V_wyE V_wzE]; % expected value of x_0
+    stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 90 90 90];  %standard deviation of x_0
+
+    % Run the Extended Kalman Filter
+    x_cor_list{idx} = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0);
+end
+
+% Plot the estimated states
+plot_estimated_states(x_cor_list, t, state_names, units, dataset_names);
+
 
 
 % Function to run the Extended Kalman Filter
-function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, units)
+function x_cor = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0)
     Ts = dt;     % time step (already provided by the data)
     N = length(t); % total number of steps
 
@@ -120,10 +132,9 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, units)
         xhat_km1_km1 = xhat_k_k;
         P_km1_km1 = P_k_k;
     end
-    plot_estimated_states(x_cor, t, N, state_names, units)
 end
 
-function plot_estimated_states(x_cor, t, N, state_names, units)
+function plot_estimated_states(x_cor_list, t, state_names, units, dataset_names)
     % Plot the estimated states
     x_label = 'Time [s]';
     y_label = 'Estimation in ';
@@ -132,11 +143,16 @@ function plot_estimated_states(x_cor, t, N, state_names, units)
     figure
     for i = 1:length(state_names)
         subplot(4,3,i)
-        plot(t(1:N), x_cor(1:N,i), '--b', 'LineWidth', 2)
+        hold on
+        for idx = 1:length(x_cor_list)
+            plot(t, x_cor_list{idx}(:,i), 'DisplayName', dataset_names{idx})
+        end
+        hold off
         grid on
         xlabel(x_label, 'FontSize', font_size)
-        ylabel(y_label + " (" + units(i) + ")", 'FontSize', font_size)
-        title(state_names(i), 'FontSize', font_size)
+        ylabel([y_label units{i}], 'FontSize', font_size)
+        title([state_names{i}], 'FontSize', font_size)
+        legend('Location', 'best')
     end
     % set figure name
     set(gcf, 'Name', 'Estimated States through Extended Kalman Filter with Sensor Bias and Faults')
