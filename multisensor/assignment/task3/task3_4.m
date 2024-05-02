@@ -3,88 +3,202 @@
 % Program to implement Extended Kalman Filter for Aircraft Climb
 
 % Read data files
-data_file = load('dataTask3_2.mat');
+datasets = [load('dataTask3_2.mat'), load('dataTask3_2.mat')];
+dataset_names = {'Dataset with AoA fault', 'Dataset with AoA fault mitigation'};
 
-% Define the data
-z_k = data_file.d_k; % output
-u_k = data_file.c_k; % input
-dt = data_file.dt; % time step
-t = data_file.t; % time vector
+% Define initial values
+x_cor_list = cell(length(datasets), 1);
+innov_list = cell(length(datasets), 1);
 
-% Define the standard deviations
-sigma_A_x = 0.01;
-sigma_A_y = 0.01;
-sigma_A_z = 0.01;
+for idx = 1:length(datasets)
+    data_file = datasets(idx);
 
-sigma_p = deg2rad(0.01);
-sigma_q = deg2rad(0.01);
-sigma_r = deg2rad(0.01);
+    % Define the data
+    z_k = data_file.d_k; % output
+    u_k = data_file.c_k; % input
+    dt = data_file.dt; % time step
+    t = data_file.t; % time vector
 
-sigma_w_b_A_x = 1;
-sigma_w_b_A_y = 1;
-sigma_w_b_A_z = 1;
+    % Define the standard deviations
+    sigma_A_x = 0.01;
+    sigma_A_y = 0.01;
+    sigma_A_z = 0.01;
 
-sigma_w_b_p = deg2rad(1);
-sigma_w_b_q = deg2rad(1);
-sigma_w_b_r = deg2rad(1);
+    sigma_p = deg2rad(0.01);
+    sigma_q = deg2rad(0.01);
+    sigma_r = deg2rad(0.01);
 
-sigma_x_E = 5;
-sigma_y_E = 5;
-sigma_z_E = 10;
+    sigma_w_b_A_x = 1;
+    sigma_w_b_A_y = 1;
+    sigma_w_b_A_z = 1;
 
-sigma_u = 0.1;
-sigma_v = 0.1;
-sigma_w = 0.1;
-sigma_V_tas = 0.1;
+    sigma_w_b_p = deg2rad(1);
+    sigma_w_b_q = deg2rad(1);
+    sigma_w_b_r = deg2rad(1);
 
-sigma_phi = deg2rad(0.1);
-sigma_theta = deg2rad(0.1);
-sigma_psi = deg2rad(0.1);
-sigma_alpha = deg2rad(0.1);
-sigma_beta = deg2rad(0.1);
+    sigma_x_E = 5;
+    sigma_y_E = 5;
+    sigma_z_E = 10;
 
-% Define the initial conditions
-x_E = z_k(1,1); % x_GPS
-y_E = z_k(1,2); % y_GPS
-z_E = z_k(1,3); % z_GPS
+    sigma_u = 0.1;
+    sigma_v = 0.1;
+    sigma_w = 0.1;
+    sigma_V_tas = 0.1;
 
-u_estimate = 85; % V_tas estimate
-v = 0;
-w = 0;
+    sigma_phi = deg2rad(0.1);
+    sigma_theta = deg2rad(0.1);
+    sigma_psi = deg2rad(0.1);
+    sigma_alpha = deg2rad(0.1);
+    sigma_beta = deg2rad(0.1);
 
-b_A_x_estimate = 0.01;
-b_A_y_estimate = 0.01;
-b_A_z_estimate = 0.01;
+    % Define the initial conditions
+    x_E = z_k(1,1); % x_GPS
+    y_E = z_k(1,2); % y_GPS
+    z_E = z_k(1,3); % z_GPS
 
-b_p_estimate = deg2rad(0.1);
-b_q_estimate = deg2rad(0.1);
-b_r_estimate = deg2rad(0.1);
+    u_estimate = 85; % V_tas estimate
+    v = 0;
+    w = 0;
 
-phi = z_k(1,7); % phi_GPS
-theta = z_k(1,8); % theta_GPS
-psi = z_k(1,9); % psi_GPS
+    b_A_x_estimate = 0.01;
+    b_A_y_estimate = 0.01;
+    b_A_z_estimate = 0.01;
 
-V_wxE = 0;
-V_wyE = 0;
-V_wzE = 0;
+    b_p_estimate = deg2rad(0.1);
+    b_q_estimate = deg2rad(0.1);
+    b_r_estimate = deg2rad(0.1);
 
-% Define state names
-state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\theta', '\psi', 'b_{A_{x}}', 'b_{A_{y}}', 'b_{A_{z}}', 'b_{p}', 'b_{q}', 'b_{r}', 'V_{wxE}', 'V_{wyE}', 'V_{wzE}'};
-output_state_names = {'x_{GPS}', 'y_{GPS}', 'z_{GPS}', 'u_{GPS}', 'v_{GPS}', 'w_{GPS}', '\phi_{GPS}', '\theta_{GPS}', '\psi_{GPS}', 'V_{tas}', '\alpha', '\beta'};
-units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s^2', 'm/s^2', 'm/s^2', 'rad/s', 'rad/s', 'rad/s', 'm/s', 'm/s', 'm/s'};
-output_units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'rad', 'rad'};
+    phi = z_k(1,7); % phi_GPS
+    theta = z_k(1,8); % theta_GPS
+    psi = z_k(1,9); % psi_GPS
 
-stdw = [sigma_A_x sigma_A_y sigma_A_z sigma_p sigma_q sigma_r sigma_w_b_A_x sigma_w_b_A_y sigma_w_b_A_z sigma_w_b_p sigma_w_b_q sigma_w_b_r]; % standard deviation of process noise
-stdv = [sigma_x_E sigma_y_E sigma_z_E sigma_u sigma_v sigma_w sigma_phi sigma_theta sigma_psi sigma_V_tas sigma_alpha sigma_beta];      % standard deviation of measurement noise
-Ex_0 = [x_E y_E z_E u_estimate v w phi theta psi b_A_x_estimate b_A_y_estimate b_A_z_estimate b_p_estimate b_q_estimate b_r_estimate V_wxE V_wyE V_wzE]; % initial state estimate
-stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 5 5 5 5 5 5 90 90 90];  % standard deviation of x_0
+    V_wxE = 0;
+    V_wyE = 0;
+    V_wzE = 0;
 
-% Run the Extended Kalman Filter
-runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units);
+    % Define state names
+    state_names = {'x_{E}', 'y_{E}', 'z_{E}', 'u', 'v', 'w', '\phi', '\theta', '\psi', 'b_{A_{x}}', 'b_{A_{y}}', 'b_{A_{z}}', 'b_{p}', 'b_{q}', 'b_{r}', 'V_{wxE}', 'V_{wyE}', 'V_{wzE}'};
+    output_state_names = {'x_{GPS}', 'y_{GPS}', 'z_{GPS}', 'u_{GPS}', 'v_{GPS}', 'w_{GPS}', '\phi_{GPS}', '\theta_{GPS}', '\psi_{GPS}', 'V_{tas}', '\alpha', '\beta'};
+    units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s^2', 'm/s^2', 'm/s^2', 'rad/s', 'rad/s', 'rad/s', 'm/s', 'm/s', 'm/s'};
+    output_units = {'m', 'm', 'm', 'm/s', 'm/s', 'm/s', 'rad', 'rad', 'rad', 'm/s', 'rad', 'rad'};
 
+    stdw = [sigma_A_x sigma_A_y sigma_A_z sigma_p sigma_q sigma_r sigma_w_b_A_x sigma_w_b_A_y sigma_w_b_A_z sigma_w_b_p sigma_w_b_q sigma_w_b_r]; % standard deviation of process noise
+    stdv = [sigma_x_E sigma_y_E sigma_z_E sigma_u sigma_v sigma_w sigma_phi sigma_theta sigma_psi sigma_V_tas sigma_alpha sigma_beta];      % standard deviation of measurement noise
+    Ex_0 = [x_E y_E z_E u_estimate v w phi theta psi b_A_x_estimate b_A_y_estimate b_A_z_estimate b_p_estimate b_q_estimate b_r_estimate V_wxE V_wyE V_wzE]; % initial state estimate
+    stdx_0 = [0.5 0.5 0.5 90 90 90 0.5 0.5 0.5 5 5 5 5 5 5 90 90 90];  % standard deviation of x_0
+
+    % Run the Extended Kalman Filter
+
+    if idx == length(datasets)
+        % Run the Extended Kalman Filter with cyber attack
+        [x_cor_list{idx}, innov_list{idx}] = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, true);
+    else
+        % Run the Extended Kalman Filter without cyber attack
+        [x_cor_list{idx}, innov_list{idx}] = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, false);
+    end
+end
+
+% Implement CUSUM algorithm
+data_labels = {'\alpha'};
+data_faulty = innov_list{1}(:,11); % alpha
+
+% Define the threshold values
+threshold_list = 50;  % empirical values
+
+% Define the leakage values
+leak = 1;
+
+% Implement the CUSUM algorithm
+[g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list] = implement_cusum(data_faulty, leak, threshold_list);
+
+% Get fault onset times
+time_onset_list = get_fault_onset_times(k_alarm_pos_list, k_alarm_neg_list, data_labels);
+
+% Plot the CUSUM algorithm
+plot_cusum(g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list, threshold_list, data_labels);
+
+% Plot the estimated states
+plot_estimated_states(x_cor_list, innov_list, t, state_names, units, output_state_names, output_units, dataset_names, time_onset_list);
+
+
+% Function to get the fault onset times
+function time_onset_list = get_fault_onset_times(k_alarm_pos_list, k_alarm_neg_list, data_labels)
+    threshold = 10;
+    buffer = 1000;
+
+    for idx=1:length(data_labels)
+        k_alarm_pos = k_alarm_pos_list{idx};
+        k_alarm_neg = k_alarm_neg_list{idx};
+
+        if ~isempty(k_alarm_pos) && ~isempty(k_alarm_neg)
+
+            % Positive test
+            change_points = find(ischange(k_alarm_pos, 'linear', 'Threshold', threshold));
+
+            % append the first change point
+            if ~isempty(change_points)
+                pos_test_list = [k_alarm_pos(change_points(1))];
+
+                for i = 1:length(change_points)-1
+                    if k_alarm_pos(change_points(i+1)) - k_alarm_pos(change_points(i)) > buffer
+                        pos_test_list = [pos_test_list; k_alarm_pos(change_points(i+1))];
+                    end
+                end
+            else
+                pos_test_list = k_alarm_pos(1);
+            end
+
+            % Take positive test as the fault onset time
+            time_onset_list{idx} = pos_test_list;
+
+        elseif ~isempty(k_alarm_pos)
+            % Positive test
+            change_points = find(ischange(k_alarm_pos, 'linear', 'Threshold', threshold));
+
+            % append the first change point
+            if ~isempty(change_points)
+                pos_test_list = [k_alarm_pos(change_points(1))];
+
+                for i = 1:length(change_points)-1
+                    if k_alarm_pos(change_points(i+1)) - k_alarm_pos(change_points(i)) > buffer
+                        pos_test_list = [pos_test_list; k_alarm_pos(change_points(i+1))];
+                    end
+                end
+            else
+                pos_test_list = k_alarm_pos(1);
+            end
+
+            % Take positive test as the fault onset time
+            time_onset_list{idx} = pos_test_list;
+
+        elseif ~isempty(k_alarm_neg)
+            % Negative test
+            change_points = find(ischange(k_alarm_neg, 'linear', 'Threshold', threshold));
+
+            % append the first change point
+            if ~isempty(change_points)
+                neg_test_list = [k_alarm_neg(change_points(1))];
+
+                for i = 1:length(change_points)-1
+                    if k_alarm_neg(change_points(i+1)) - k_alarm_neg(change_points(i)) > buffer
+                        neg_test_list = [neg_test_list; k_alarm_neg(change_points(i+1))];
+                    end
+                end
+            else
+                neg_test_list = k_alarm_neg(1);
+            end
+
+            % Take negative test as the fault onset time
+            time_onset_list{idx} = neg_test_list;
+
+        else
+            time_onset_list{idx} = 0;
+        end
+    end
+end
 
 % Function to run the Extended Kalman Filter
-function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_state_names, units, output_units)
+function [x_cor, innov] = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, cyber_attack)
     Ts = dt;     % time step (already provided by the data)
     N = length(t); % total number of steps
 
@@ -122,18 +236,20 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_s
         % Step 4: Measurement Update (Correction)
         z_k_km1 = funch(xhat_k_km1,u_km1(k,:),[]); % z(k|k-1) (prediction of output)
 
-        % Cyber attack on alpha, fix the measurement update of the 11th state of innovation
-        % Innovation data calculation
-        innov(k,:) = z_k(k,:) - z_k_km1; % y(k)-y(k|k-1) (innovation)
+        if cyber_attack
+            % Cyber attack on alpha, fix the measurement update of the 11th state of innovation
+            % Innovation data calculation
+            innov(k,:) = z_k(k,:) - z_k_km1; % y(k)-y(k|k-1) (innovation)
 
-        % standardised the innovation
-        innov(k, :) = innov(k, :) ./ sqrt(diag(Ve))';
+            % standardised the innovation
+            innov(k, :) = innov(k, :) ./ sqrt(diag(Ve))';
 
-        % Check if the innovation is within 3 standard deviations for the 11th state
-        if abs(innov(k, 11)) > 3
-            % If the innovation is outside 3 standard deviations, then the measurement is not used
-            z_k(k, 11) = z_k_km1(11);
-            innov(k, 11) = 0;
+            % Check if the innovation is within 3 standard deviations for the 11th state
+            if abs(innov(k, 11)) > 3
+                % If the innovation is outside 3 standard deviations, then the measurement is not used
+                z_k(k, 11) = z_k_km1(11);
+                innov(k, 11) = 0;
+            end
         end
 
         xhat_k_k = xhat_k_km1 + (z_k(k,:) - z_k_km1)*K_k'; % x(k|k) (correction)
@@ -153,38 +269,28 @@ function runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, state_names, output_s
         xhat_km1_km1 = xhat_k_k;
         P_km1_km1 = P_k_k;
     end
-    plot_estimated_states(x_cor, t, N, innov, state_names, output_state_names, units, output_units);
-
-    % Implement CUSUM algorithm
-    data_file_nominal = load('saved_task2_2.mat');
-    data_labels = {'\alpha'};
-    innov_nominal = data_file_nominal.innov(:,11);
-    innov_faulty = innov(:,11);
-    leak = [1];
-    theta0_list = mean(innov_nominal);
-    sigma0_list = std(innov_nominal);
-    thresholds_list = [0.02];  % empirical values
-    cum_threshold_list = thresholds_list + theta0_list;
-
-    implement_cusum(innov_faulty, leak, cum_threshold_list, theta0_list, sigma0_list, data_labels);
 end
 
 
 % Function to implement CUSUM algorithm
-function implement_cusum(x_faulty, leak, cum_threshold_list, theta0_list, sigma0_list, data_labels)
+function [g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list] = implement_cusum(x_faulty, leak, threshold_list)
     % Initialize variables
     skip_faulty_indices = 500; % Skip initial values so that EKF can converge
     faulty_size = size(x_faulty, 1);
     faulty_columns = size(x_faulty, 2);
+    g_pos_list = cell(faulty_columns, 1);
+    g_neg_list = cell(faulty_columns, 1);
+    k_alarm_pos_list = cell(faulty_columns, 1);
+    k_alarm_neg_list = cell(faulty_columns, 1);
+
 
     for idx=1:faulty_columns
         straingauge = x_faulty(skip_faulty_indices:faulty_size, idx);
-        theta0 = theta0_list(idx);
-        sigma0 = sigma0_list(idx);
-        cum_threshold = cum_threshold_list(idx);
+        theta0 = 0;
+        sigma0 = std(straingauge);
 
-        threshold_pos = cum_threshold;
-        threshold_neg = -cum_threshold;
+        threshold_pos = threshold_list(idx);
+        threshold_neg = -threshold_list(idx);
 
         % Two-Sided CUSUM Test
         g_pos = 0 * straingauge;
@@ -217,75 +323,149 @@ function implement_cusum(x_faulty, leak, cum_threshold_list, theta0_list, sigma0
             end
         end
 
-        figure
-        p1=plot(g_pos);
+        if ~isempty(k_alarm_pos)
+            k_alarm_pos = k_alarm_pos + skip_faulty_indices;
+        end
+
+        if ~isempty(k_alarm_neg)
+            k_alarm_neg = k_alarm_neg + skip_faulty_indices;
+        end
+
+        if isempty(k_alarm_pos)
+            k_alarm_pos = 0;
+        end
+
+        if isempty(k_alarm_neg)
+            k_alarm_neg = 0;
+        end
+
+        g_pos_list{idx} = g_pos;
+        g_neg_list{idx} = g_neg;
+        k_alarm_pos_list{idx} = k_alarm_pos;
+        k_alarm_neg_list{idx} = k_alarm_neg;
+    end
+end
+
+% Function to plot the CUSUM algorithm
+function plot_cusum(g_pos_list, g_neg_list, k_alarm_pos_list, k_alarm_neg_list, threshold_list, data_labels)
+    % Plot the CUSUM algorithm
+    font_size = 12;
+
+    figure
+    for idx=1:length(data_labels)
+        p1=plot(g_pos_list{idx});
         hold on
-        p2=plot(g_neg);
-        for i=1:length(k_alarm_pos)
-            p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-20 20],'b--');
+        p2=plot(g_neg_list{idx});
+
+        k_alarm_pos = k_alarm_pos_list{idx};
+        k_alarm_neg = k_alarm_neg_list{idx};
+
+        if ~isempty(k_alarm_pos) && ~isempty(k_alarm_neg)
+
+            for i=1:length(k_alarm_pos)
+                p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-100 100],'b--');
+            end
+            for i=1:length(k_alarm_neg)
+                p4=plot([k_alarm_neg(i) k_alarm_neg(i)],[-100 100],'r-.');
+            end
+            legend([p1,p2,p3,p4],'Positive Test', 'Negative Test',' Alarms for positive test','Alarms for negative test','Location','best')
+
+        elseif ~isempty(k_alarm_pos)
+
+            for i=1:length(k_alarm_pos)
+                p3=plot([k_alarm_pos(i) k_alarm_pos(i)],[-100 100],'b--');
+            end
+            legend([p1,p2,p3],'Positive Test', 'Negative Test', 'Alarms for positive test','Location','best')
+
+        elseif ~isempty(k_alarm_neg)
+
+            for i=1:length(k_alarm_neg)
+                p3=plot([k_alarm_neg(i) k_alarm_neg(i)],[-100 100],'r-.');
+            end
+            legend([p1,p2,p3],'Positive Test', 'Negative Test', 'Alarms for negative test', 'Location')
+
+        else
+            legend([p1,p2],'Positive Test', 'Negative Test', 'Location','best')
         end
-        for i=1:length(k_alarm_neg)
-            p4=plot([k_alarm_neg(i) k_alarm_neg(i)],[-20 20],'r-.');
-        end
-        legend([p1,p2,p3,p4],'Positive Test', 'Negative Test','Alarms for positive test','Alarms for negative test')
-        yline(threshold_neg)
-        yline(threshold_pos)
-        ylim([threshold_neg-0.025 threshold_pos+0.025])
-        xlabel('Step')
-        ylabel('g_t')
-        title(['CUSUM Algorithm for ', data_labels{idx}]);
+
+        yline(-threshold_list(idx))
+        yline(threshold_list(idx))
+        ylim([-threshold_list(idx)-0.025 threshold_list(idx)+0.025])
+        xlabel('Step', 'FontSize', font_size)
+        ylabel('g_t', 'FontSize', font_size)
+        title(['CUSUM Algorithm for ', data_labels{idx}], 'FontSize', font_size)
     end
 end
 
 
-
-
-
-
-
-function plot_estimated_states(x_cor, t, N, innov, state_names, output_state_names, units, output_units)
+% Function to plot the estimated states
+function plot_estimated_states(x_cor_list, innov_list, t, state_names, units, output_state_names, output_units, dataset_names, time_onset_list)
     % Plot the estimated states
     x_label = 'Time [s]';
     y_label = 'Estimation in ';
     font_size = 12;
-    n_rows = ceil(length(state_names) / 3);
+    n_rows = ceil((length(state_names) - 6) / 3);
 
     figure
     for i = 1:length(state_names)
-        subplot(n_rows, 3, i)
-        plot(t(1:N), x_cor(1:N,i), '--b', 'LineWidth', 2)
+        if i < 10
+            subplot_idx = i;
+        elseif i > 9 && i < 16
+            continue
+        elseif i >= 16
+            subplot_idx = i - 6;
+        end
+        subplot(n_rows, 3, subplot_idx)
+        hold on
+        for idx = 1:length(x_cor_list)
+            if idx == length(x_cor_list)
+                plot(t, x_cor_list{idx}(:,i), '--r', 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
+            else
+                plot(t, x_cor_list{idx}(:,i), 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
+            end
+        end
+        hold off
         grid on
         xlabel(x_label, 'FontSize', font_size)
-        ylabel(y_label + " (" + units(i) + ")", 'FontSize', font_size)
-        title(state_names(i), 'FontSize', font_size)
+        ylabel([y_label units{i}], 'FontSize', font_size)
+        title([state_names{i}], 'FontSize', font_size)
+        legend('Location', 'best')
     end
     % set figure name
     set(gcf, 'Name', 'Estimated States through Extended Kalman Filter with Biases and Faults')
 
     % Plot the innovation
     figure
-    for i = 1:size(innov, 2)
-        subplot(n_rows, 3, i)
-        plot(t(1:N), innov(1:N,i), '--r', 'LineWidth', 2)
-        grid on
-        xlabel(x_label, 'FontSize', font_size)
-        ylabel('Innovation' + " (" + output_units(i) + ")", 'FontSize', font_size)
-        title(output_state_names(i), 'FontSize', font_size)
+    i = 11; % alpha
+    hold on
+    for idx = 1:length(innov_list)
+        if idx == length(innov_list)
+            plot(t, innov_list{idx}(:,i), '--r', 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
+        else
+            plot(t, innov_list{idx}(:,i), 'DisplayName', dataset_names{idx}, 'LineWidth', 2);
+        end
     end
-    % set figure name
-    set(gcf, 'Name', 'Innovation through Extended Kalman Filter with Faults')
 
-
-    % Plot bias
-    figure
-    for i = 10:15
-        subplot(2, 3, i-9)
-        plot(t(1:N), x_cor(1:N,i), '--b', 'LineWidth', 2)
-        grid on
-        xlabel(x_label, 'FontSize', font_size)
-        ylabel(y_label + " (" + units(i) + ")", 'FontSize', font_size)
-        title(state_names(i), 'FontSize', font_size)
+    % draw vertical lines for fault onset times
+    if ~isempty(time_onset_list)
+        if time_onset_list{1} ~= 0
+            for j=1:length(time_onset_list{1})
+                if j == 1
+                    xline(time_onset_list{1}(j)/100, '--k', 'DisplayName', 'Fault Onset Time', 'LineWidth', 2.5, 'Color', [0 0 0]);
+                else
+                    % dont display the legend for subsequent lines
+                    xline(time_onset_list{1}(j)/100, '--k', 'LineWidth', 2.5, 'Color', [0 0 0], 'HandleVisibility', 'off');
+                end
+            end
+        end
     end
+
+    hold off
+    grid on
+    xlabel(x_label, 'FontSize', font_size)
+    ylabel([y_label output_units{i}], 'FontSize', font_size)
+    title(['Innovation: ' output_state_names{i}], 'FontSize', font_size)
+    legend('Location', 'best')
 end
 
 % Function to calculate the state vector derivative

@@ -101,7 +101,6 @@ plot_estimated_states(x_cor_list, t, state_names, units, dataset_names, []);
 
 % Implement CUSUM algorithm
 data_labels = {'A_{x}', 'A_{y}', 'A_{z}', 'p', 'q', 'r'};
-data_nominal = x_cor_list{1}(:,10:15);
 data_faulty = x_cor_list{2}(:,10:15);
 
 % Define the threshold values
