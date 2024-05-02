@@ -242,7 +242,7 @@ function [x_cor, innov] = runEKF(u_k, z_k, t, dt, stdw, stdv, stdx_0, Ex_0, cybe
             innov(k,:) = z_k(k,:) - z_k_km1; % y(k)-y(k|k-1) (innovation)
 
             % standardised the innovation
-            innov(k, :) = innov(k, :) ./ sqrt(diag(Ve))';
+            innov(k, :) = innov(k, :) / sqrtm(Ve);
 
             % Check if the innovation is within 3 standard deviations for the 11th state
             if abs(innov(k, 11)) > 3
