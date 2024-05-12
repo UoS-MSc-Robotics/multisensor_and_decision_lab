@@ -9,7 +9,7 @@ scale = 1;
 % Inputs:
 %       q - k-vector containing the number of points along each dimension
 %       Edges - if Edges=1 the points will be equally spaced from edge to
-%               edge (default), otherwise they will be in the centres of 
+%               edge (default), otherwise they will be in the centres of
 %               n = q(1)*q(2)*...q(k) bins filling the unit cube.
 %
 % X - full factorial sampling plan
@@ -33,8 +33,8 @@ ylabel('x_2');
 %       n - desired number of points
 %       k - number of design variables (dimensions)
 %       Edges - if Edges=1 the extreme bins will have their centres on the
-%               edges of the domain, otherwise the bins will be entirely 
-%               contained within the domain (default setting). 
+%               edges of the domain, otherwise the bins will be entirely
+%               contained within the domain (default setting).
 %
 % Output:
 %       X - Latin hypercube sampling plan of n points in k dimensions.
