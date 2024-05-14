@@ -5,6 +5,10 @@ clc; clear; close all;
 addpath(fullfile(pwd, '/lab1/sampling/'));
 addpath(fullfile(pwd, '/lab1/evaluation/'));
 
+% Labels for design constraints
+design_constraints = {'max pole', 'gain margin', 'phase margin', 'rise time', 'peak time', 'overshoot', ...
+    'undershoot', 'settling time', 'steady-state error', 'control input'};
+
 % Sampling plans to analyze
 sampling_plans_list = {'full factorial', 'sobol set', 'latin hypercube', 'random Latin hypercube'};
 
@@ -16,7 +20,7 @@ fprintf('The best sampling plan is: %s\n', best_sampling_plan);
 Z = evaluateControlSystem(P);
 
 % Implement knowledge discovery
-knowledge_discovery(Z, best_sampling_plan);
+knowledge_discovery(Z, best_sampling_plan, design_constraints);
 
 
 
@@ -66,13 +70,11 @@ end
 
 
 % Function to implement knowledge discovery
-function knowledge_discovery(Z, best_sampling_plan)
-    labels = {'max pole', 'gain margin', 'phase margin', 'rise time', 'peak time', 'overshoot', 'undershoot', 'settling time', 'steady-state error', 'control input'};
-
+function knowledge_discovery(Z, best_sampling_plan, design_constraints)
     figure;
     set(gcf, 'Position', get(0, 'Screensize'));
     p = parallelplot(Z, 'Color', 'b');
-    p.CoordinateTickLabels = labels;
+    p.CoordinateTickLabels = design_constraints;
     % set y-axis labels
     p.YLabel = 'Performance metric value';
     p.Title = sprintf('Performance evaluations for %s sampling plan', best_sampling_plan);
