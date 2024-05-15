@@ -152,7 +152,7 @@ function analyze_best_fit(P, Z, priority, weighted_priority, goals, design_const
 
     % check the difference between the goals and the Z values to find the best fit
     for idx = 1:length(indices)
-        diff = abs(Z(indices(idx), :) - goals);
+        diff = abs(Z(indices(idx), :) - goals) / goals;
         diff = diff .* weighted_priority;
         % remove the NaN values
         diff(isnan(diff)) = 0;
@@ -182,14 +182,14 @@ end
 
 % Function to build the optimizing engine with preferability
 function buildOptimizingEngine(enable_preference, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints)
-    % reference_point = max(optimizeControlPlan(P));
+    % reference_point = max(optimizeControlSystem(P));
     % Res = [];
     figure;
     set(gcf, 'Position', get(0, 'Screensize'));
 
     for i = 1:iterations
         % Step 1: Initializing the population
-        Z = optimizeControlPlan(P);
+        Z = optimizeControlSystem(P);
 
         % Step 2: Calculating fitness
         % Step 2.1: Non-dominated sorting with preferability (flipped ranking)
@@ -221,13 +221,13 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
 
         parents  = P(selectThese, :);
         bounds = [0, 0; 1, 1];
-        offspring = sbx(parents, bounds, 15, 1, 0.7, 0, 0.5);
+        offspring = sbx(parents, bounds);
 
         % Step 4.2: Polynomial mutation
         % Polynomial mutation operator
         % for real number representations.
         %
-        C = polymut(offspring, bounds, 20, 1 / 2);
+        C = polymut(offspring, bounds);
 
         % Step 5: Performing selection-for-survival
 
@@ -239,7 +239,7 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
         % Selects the new parent population from the unified population
         % of previous parents and offspring.
 
-        Z_unified = optimizeControlPlan(unifiedPop);
+        Z_unified = optimizeControlSystem(unifiedPop);
         if enable_preference
             new_indices = reducerNSGA_II(unifiedPop, rank_prf(Z_unified, goals, priority), crowding(Z_unified, rank_prf(Z_unified, goals, priority)));
         else
@@ -251,6 +251,7 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
 
         % Step 6: Check for convergence
         % Res = [Res, Hypervolume_MEX(Z_unified, reference_point)];
+        % Hypervolume is a measure of the volume of the objective space, dominated by the Pareto front.
 
         % Step 7: Plot the new population and convergence
 
@@ -262,7 +263,7 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
         ylabel('x_2');
         drawnow;
 
-        % % Plot the convergence using subplot and lines
+        % Plot the convergence using subplot and lines
         % subplot(1, 2, 2);
         % plot(Res, 'LineWidth', 2, 'Color', 'r');
         % title('Hypervolume Convergence plot');
@@ -274,7 +275,7 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
     end
 
     % Get the design evaluations
-    Z = optimizeControlPlan(P);
+    Z = optimizeControlSystem(P);
 
     % Implement knowledge discovery
     knowledge_discovery(Z, best_sampling_plan, design_constraints);
@@ -284,7 +285,7 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
 end
 
 % Function to optimize the sampling plan
-function Z_optimized = optimizeControlPlan(P)
+function Z_optimized = optimizeControlSystem(P)
     Z = evaluateControlSystem(P);
 
     % Step 1: Convert gain margin to decibels

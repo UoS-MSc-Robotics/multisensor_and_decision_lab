@@ -38,30 +38,30 @@ function [P_best, best_sampling_plan] = mmphi_analysis(sampling_plans_list)
     for i = 1:length(sampling_plans_list)
         sampling_plan = sampling_plans_list{i};
         if strcmp(sampling_plan, 'full factorial')
-            X = fullfactorial(q, Edges);
+            P = fullfactorial(q, Edges);
         elseif strcmp(sampling_plan, 'sobol set')
-            X = sobolset(length(q));
-            X = net(X, q(1)*q(2));
+            P = sobolset(length(q));
+            P = net(P, q(1)*q(2));
         elseif strcmp(sampling_plan, 'latin hypercube')
-            X = lhsdesign(q(1)*q(2), length(q));
+            P = lhsdesign(q(1)*q(2), length(q));
         elseif strcmp(sampling_plan, 'random Latin hypercube')
-            X = rlh(q(1)*q(2), length(q), Edges);
+            P = rlh(q(1)*q(2), length(q), Edges);
         else
             error('Invalid sampling plan specified.');
         end
 
-        phi_metric = mmphi(X * scale, 5, 1);
+        phi_metric = mmphi(P * scale, 2, 2);
         fprintf('The MMPhi metric for %s sampling plan is: %f\n', sampling_plan, phi_metric);
 
         if phi_metric < min_phi_metric
             min_phi_metric = phi_metric;
             best_sampling_plan = sampling_plan;
-            P_best = X;
+            P_best = P;
         end
 
         % Plot the sampling plan using subplot
         subplot(n_rows, 2, i);
-        plot(X(:,1), X(:,2), 'o');
+        plot(P(:,1), P(:,2), 'o');
         title(sprintf('%s', sampling_plan));
         xlabel('x_1');
         ylabel('x_2');
