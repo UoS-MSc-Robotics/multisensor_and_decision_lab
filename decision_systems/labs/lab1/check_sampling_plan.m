@@ -19,8 +19,11 @@ fprintf('The best sampling plan is: %s\n', best_sampling_plan);
 % Evaluate the control system
 Z = evaluateControlSystem(P);
 
+% Specify the goals
+goals = [1, 6, 70, 2, 10, 10, 8, 20, 1, 0.67];
+
 % Implement knowledge discovery
-knowledge_discovery(Z, best_sampling_plan, design_constraints);
+knowledge_discovery(Z, best_sampling_plan, design_constraints, goals);
 
 
 
@@ -70,12 +73,52 @@ end
 
 
 % Function to implement knowledge discovery
-function knowledge_discovery(Z, best_sampling_plan, design_constraints)
+function knowledge_discovery(Z, best_sampling_plan, design_constraints, goals)
     figure;
     set(gcf, 'Position', get(0, 'Screensize'));
-    p = parallelplot(Z, 'Color', 'b');
+
+    stability1 = nan * ones(size(Z, 2), 1);
+    stability2 = nan * ones(size(Z, 2), 1);
+
+    stability1(1:3) = goals(1:3);
+    stability2(1:3) = goals(1:3);
+    stability2(3) = 30;
+
+    transient = nan * ones(size(Z, 2), 1);
+    transient(4:8) = goals(4:8);
+
+    steady_state = nan * ones(size(Z, 2), 1);
+    steady_state(9) = goals(9);
+
+    sustainability = nan * ones(size(Z, 2), 1);
+    sustainability(10) = goals(10);
+
+
+    % Append extra line to A
+    Z = [Z; stability1'; stability2'; transient'; steady_state'; sustainability'];
+
+    % Grouping vector
+    % groupDataVector = ones(1, size(Z, 1) - 2);
+    % groupDataVector = [groupDataVector, 2, 2];
+
+    % create a vector of strings
+    groupDataVector = cell(1, size(Z, 1) - 5);
+    for i = 1:length(groupDataVector)
+        groupDataVector{i} = 'All Design Evaluation';
+    end
+
+    groupDataVector = [groupDataVector, 'Stability', 'Stability', 'Transient', 'Steady State', 'Sustainability'];
+
+    p = parallelplot(Z, 'groupData', groupDataVector, 'Color', {'green','red', 'blue', 'magenta', 'black'}, 'LineWidth', 2);
+    p.MarkerStyle = {'none','o', 'o', 'o', 'o'};
+    p.MarkerSize(end) = 15;
+    p.LineStyle = {'-', '--', '--', '--', '--'};
+    p.LegendTitle = 'Performance Criteria';
+
+
     p.CoordinateTickLabels = design_constraints;
-    % set y-axis labels
     p.YLabel = 'Performance metric value';
     p.Title = sprintf('Performance evaluations for %s sampling plan', best_sampling_plan);
+
+
 end
