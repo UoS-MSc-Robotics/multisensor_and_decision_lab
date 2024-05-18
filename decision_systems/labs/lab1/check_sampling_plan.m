@@ -25,6 +25,9 @@ goals = [1, 6, 70, 2, 10, 10, 8, 20, 1, 0.67];
 % Implement knowledge discovery
 knowledge_discovery(Z, best_sampling_plan, design_constraints, goals);
 
+% Find the lower dimensional representation of the data
+data_mining(Z);
+
 
 
 % Function to analyze different sampling plans using mmphi
@@ -93,13 +96,8 @@ function knowledge_discovery(Z, best_sampling_plan, design_constraints, goals)
     sustainability = nan * ones(size(Z, 2), 1);
     sustainability(10) = goals(10);
 
-
     % Append extra line to A
     Z = [Z; stability1'; stability2'; transient'; steady_state'; sustainability'];
-
-    % Grouping vector
-    % groupDataVector = ones(1, size(Z, 1) - 2);
-    % groupDataVector = [groupDataVector, 2, 2];
 
     % create a vector of strings
     groupDataVector = cell(1, size(Z, 1) - 5);
@@ -107,6 +105,7 @@ function knowledge_discovery(Z, best_sampling_plan, design_constraints, goals)
         groupDataVector{i} = 'All Design Evaluation';
     end
 
+    % Grouping vector
     groupDataVector = [groupDataVector, 'Stability', 'Stability', 'Transient', 'Steady State', 'Sustainability'];
 
     p = parallelplot(Z, 'groupData', groupDataVector, 'Color', {'green','red', 'blue', 'magenta', 'black'}, 'LineWidth', 2);
@@ -119,6 +118,61 @@ function knowledge_discovery(Z, best_sampling_plan, design_constraints, goals)
     p.CoordinateTickLabels = design_constraints;
     p.YLabel = 'Performance metric value';
     p.Title = sprintf('Performance evaluations for %s sampling plan', best_sampling_plan);
+end
 
+% Function to find the lower dimensional representation of the data
+function data_mining(Z)
+    figure;
+    set(gcf, 'Position', get(0, 'Screensize'));
 
+    % remove inf values
+    Z(isinf(Z)) = 1e6;
+
+    % normalize the data
+    Z = normalize(Z);
+
+    % apply pca
+    [coeff, score, latent, ~, explained] = pca(Z);
+
+    % plot the explained variance
+    subplot(2, 2, 1);
+    plot(explained, 'o-');
+    title('Explained Variance');
+    xlabel('Principal Component');
+    ylabel('Explained Variance (%)');
+
+    % plot the first three principal components
+
+    % perform kmeans clustering on the first three principal components
+    [idx, C] = kmeans(score(:,1:3), 3);
+
+    % plot the first three principal components
+    subplot(2, 2, 3);
+    scatter3(score(:,1), score(:,2), score(:,3), 50, idx, 'o');
+    % change the color of the centroids
+    hold on;
+    scatter3(C(:,1), C(:,2), C(:,3), 100, 'k', 'x');
+    hold off;
+    title('First Three Principal Components');
+    xlabel('PC1');
+    ylabel('PC2');
+    zlabel('PC3');
+    % label the legend
+    legend('Clusters', 'Centroids');
+
+    [idx, C] = kmeans(score(:,4:6), 3);
+
+    % plot the next three principal components
+    subplot(2, 2, 4);
+    scatter3(score(:,4), score(:,5), score(:,6), 50, idx, 'o');
+    % change the color of the centroids
+    hold on;
+    scatter3(C(:,1), C(:,2), C(:,3), 100, 'k', 'x');
+    hold off;
+    title('Next Three Principal Components');
+    xlabel('PC4');
+    ylabel('PC5');
+    zlabel('PC6');
+    % label the legend
+    legend('Clusters', 'Centroids');
 end

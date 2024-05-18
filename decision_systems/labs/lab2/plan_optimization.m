@@ -61,7 +61,7 @@ iterations = 50;
 priority = [3, 2, 2, 1, 0, 1, 0, 0, 1, 2];
 weighted_priority = [0.8, 0.6, 0.6, 0.4, 0.2, 0.4, 0.2, 0.2, 0.6, 0.6];
 goals = [1, -6, 20, 2, 10, 10, 8, 20, 1, 0.67];
-% buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
+buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
 
 % task B.2.4
 iterations = 50;
@@ -75,7 +75,7 @@ iterations = 50;
 priority = [3, 2, 2, 1, 0, 1, 0, 0, 1, 2];
 weighted_priority = [0.8, 0.6, 0.6, 0.4, 0.2, 0.4, 0.2, 0.2, 0.6, 0.6];
 goals = [1, -6, 20, 2, 10, 10, 8, 20, 1, 0.63];
-buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
+% buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
 
 
 
