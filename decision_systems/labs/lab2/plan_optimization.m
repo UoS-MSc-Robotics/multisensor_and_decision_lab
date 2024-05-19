@@ -21,7 +21,6 @@ addpath(fullfile(pwd, '/lab1/sampling/'));
 addpath(fullfile(pwd, '/lab1/evaluation/'));
 addpath(fullfile(pwd, '/lab2/EA_Toolbox/'));
 
-
 % Labels for the design constraints
 design_constraints = {'max pole', 'gain margin', 'phase margin', 'rise time', 'peak time', 'overshoot', ...
     'undershoot', 'settling time', 'steady-state error', 'control input'};
@@ -61,7 +60,7 @@ iterations = 50;
 priority = [3, 2, 2, 1, 0, 1, 0, 0, 1, 2];
 weighted_priority = [0.8, 0.6, 0.6, 0.4, 0.2, 0.4, 0.2, 0.2, 0.6, 0.6];
 goals = [1, -6, 20, 2, 10, 10, 8, 20, 1, 0.67];
-buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
+% buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
 
 % task B.2.4
 iterations = 50;
@@ -75,7 +74,7 @@ iterations = 50;
 priority = [3, 2, 2, 1, 0, 1, 0, 0, 1, 2];
 weighted_priority = [0.8, 0.6, 0.6, 0.4, 0.2, 0.4, 0.2, 0.2, 0.6, 0.6];
 goals = [1, -6, 20, 2, 10, 10, 8, 20, 1, 0.63];
-% buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
+buildOptimizingEngine(true, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints);
 
 
 
@@ -172,6 +171,14 @@ function analyze_best_fit(P, Z, priority, weighted_priority, goals, design_const
         end
     end
 
+    % print success rate deviation from goal
+    success_rate = (abs(goals) - abs(best_solution)) ./ goals * 100;
+    % round the success rate to 1 decimal place
+    success_rate = round(success_rate, 1);
+
+    % print the success rate
+    fprintf('The success rate deviation from the goal is: %s\n', mat2str(success_rate));
+
     % print the best solution
     fprintf('The best solution is: %s\n', mat2str(best_solution));
 
@@ -182,8 +189,9 @@ end
 
 % Function to build the optimizing engine with preferability
 function buildOptimizingEngine(enable_preference, P, iterations, goals, priority, weighted_priority, best_sampling_plan, design_constraints)
-    % reference_point = max(optimizeControlSystem(P));
-    % Res = [];
+    reference_point = max(optimizeControlSystem(P));
+    convergence = zeros(1, iterations, 'double');
+    bounds = [0, 0; 1, 1];
     figure;
     set(gcf, 'Position', get(0, 'Screensize'));
 
@@ -220,7 +228,6 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
         % P - > decision variables
 
         parents  = P(selectThese, :);
-        bounds = [0, 0; 1, 1];
         offspring = sbx(parents, bounds);
 
         % Step 4.2: Polynomial mutation
@@ -250,35 +257,37 @@ function buildOptimizingEngine(enable_preference, P, iterations, goals, priority
         P = unifiedPop(new_indices, :);
 
         % Step 6: Check for convergence
-        % Res = [Res, Hypervolume_MEX(Z_unified, reference_point)];
+        % convergence(i) = log10(Hypervolume_MEX(Z, reference_point));
         % Hypervolume is a measure of the volume of the objective space, dominated by the Pareto front.
 
         % Step 7: Plot the new population and convergence
 
         % Plot the progress using drawnow
-        subplot(1, 2, 1);
-        plot(P(:,1), P(:,2), 'o');
-        title(sprintf('Sampling update for iteration %d', i));
-        xlabel('x_1');
-        ylabel('x_2');
-        drawnow;
-
-        % Plot the convergence using subplot and lines
-        % subplot(1, 2, 2);
-        % plot(Res, 'LineWidth', 2, 'Color', 'r');
-        % title('Hypervolume Convergence plot');
-        % xlabel('Iteration');
-        % ylabel('Hypervolume');
-        % xlim([0, iterations + 1]);
-        % ylim([1e55, 0.5* 1e56]);
+        % subplot(1, 2, 1);
+        % plot(P(:,1), P(:,2), 'o');
+        % title(sprintf('Sampling update for iteration %d', i));
+        % xlabel('x_1');
+        % ylabel('x_2');
         % drawnow;
+
+        fprintf('Iteration %d\n', i);
+
     end
+
+    % Plot the convergence using subplot and lines
+    subplot(1, 2, 2);
+    plot(convergence, 'LineWidth', 2, 'Color', 'r');
+    title('Hypervolume Convergence plot');
+    xlabel('Iteration');
+    ylabel('Hypervolume (log10 scale)');
+    xlim([0, iterations + 1]);
+    ylim([55, 56]);
 
     % Get the design evaluations
     Z = optimizeControlSystem(P);
 
     % Implement knowledge discovery
-    knowledge_discovery(Z, best_sampling_plan, design_constraints);
+    knowledge_discovery(Z, best_sampling_plan, design_constraints, goals);
 
     % Analyze best fit from the matrix of design evaluations
     analyze_best_fit(P, Z, priority, weighted_priority, goals, design_constraints);
@@ -350,12 +359,42 @@ function [P_best, best_sampling_plan] = mmphi_analysis(sampling_plans_list)
 end
 
 % Function to implement knowledge discovery
-function knowledge_discovery(Z, best_sampling_plan, design_constraints)
+function knowledge_discovery(Z, best_sampling_plan, design_constraints, goals)
     figure;
     set(gcf, 'Position', get(0, 'Screensize'));
-    p = parallelplot(Z, 'Color', 'b');
+
+    stability = nan * ones(size(Z, 2), 1);
+    stability(1:3) = goals(1:3);
+
+    transient = nan * ones(size(Z, 2), 1);
+    transient(4:8) = goals(4:8);
+
+    steady_state = nan * ones(size(Z, 2), 1);
+    steady_state(9) = goals(9);
+
+    sustainability = nan * ones(size(Z, 2), 1);
+    sustainability(10) = goals(10);
+
+    % Append extra line to A
+    Z = [Z; stability'; transient'; steady_state'; sustainability'];
+
+    % create a vector of strings
+    groupDataVector = cell(1, size(Z, 1) - 4);
+    for i = 1:length(groupDataVector)
+        groupDataVector{i} = 'All Design Evaluation';
+    end
+
+    % Grouping vector
+    groupDataVector = [groupDataVector, 'Stability', 'Transient', 'Steady State', 'Sustainability'];
+
+    p = parallelplot(Z, 'groupData', groupDataVector, 'Color', {'green','red', 'blue', 'magenta', 'black'}, 'LineWidth', 2);
+    p.MarkerStyle = {'none','o', 'o', 'o', 'o'};
+    p.MarkerSize(end) = 15;
+    p.LineStyle = {'-', '--', '--', '--', '--'};
+    p.LegendTitle = 'Performance Criteria';
+
+
     p.CoordinateTickLabels = design_constraints;
-    % set y-axis labels
     p.YLabel = 'Performance metric value';
     p.Title = sprintf('Performance evaluations for %s sampling plan', best_sampling_plan);
 end
